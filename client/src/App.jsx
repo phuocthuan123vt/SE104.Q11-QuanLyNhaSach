@@ -1,17 +1,26 @@
 // client/src/App.jsx
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Table, Typography, Button, Modal, Form, InputNumber, Select, message, Tabs, Radio, Input } from 'antd'; // Thêm Input
+import { 
+  Table, Typography, Button, Modal, Form, InputNumber, Select, 
+  message, Tabs, Radio, Input, Layout, Card, Space, Tag, Statistic, Row, Col, Badge 
+} from 'antd';
+import { 
+  PlusOutlined, ShoppingCartOutlined, DollarOutlined, 
+  SearchOutlined, BookOutlined, BarChartOutlined, SettingOutlined,
+  UserOutlined, HomeOutlined
+} from '@ant-design/icons';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
+const { Header, Content, Footer } = Layout;
 
 function App() {
+  // --- STATE (GIỮ NGUYÊN KHÔNG ĐỔI) ---
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
 
-  // --- State Nghiệp vụ ---
   const [isModalOpen, setIsModalOpen] = useState(false); 
   const [form] = Form.useForm();
   
@@ -21,18 +30,16 @@ function App() {
   const [isPayModalOpen, setIsPayModalOpen] = useState(false); 
   const [payForm] = Form.useForm();
 
-  // --- State Báo cáo ---
   const [reportData, setReportData] = useState([]);
   const [reportType, setReportType] = useState('ton');
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
 
-  // --- [MỚI] State Tra cứu & Quy định ---
   const [searchText, setSearchText] = useState('');
   const [rules, setRules] = useState([]);
   const [ruleForm] = Form.useForm();
 
-  // --- API Calls ---
+  // --- API CALLS (GIỮ NGUYÊN) ---
   const fetchBooks = async () => {
     setLoading(true);
     try {
@@ -76,7 +83,7 @@ function App() {
     fetchBooks(); fetchCustomers(); fetchRules(); 
   }, []);
 
-  // --- Handlers ---
+  // --- HANDLERS (GIỮ NGUYÊN) ---
   const handleNhapSach = async (values) => {
     const payload = { danhSachSachNhap: [{ maSach: values.maSach, soLuong: values.soLuong, donGia: values.donGia }] };
     try {
@@ -115,89 +122,180 @@ function App() {
     } catch (e) { message.error("Lỗi cập nhật"); }
   };
 
-  // --- Columns ---
+  // --- COLUMN CONFIGURATION (NÂNG CẤP GIAO DIỆN) ---
   const columnsBook = [
-    { title: 'Mã', dataIndex: 'MaSach', key: 'MaSach' },
-    { title: 'Tên Sách', dataIndex: 'TenSach', key: 'TenSach', render: t => <b>{t}</b> },
-    { title: 'Tác Giả', dataIndex: 'TacGia', key: 'TacGia' },
-    { title: 'Tồn Kho', dataIndex: 'SoLuongTon', key: 'SoLuongTon', render: v => <span style={{color: v<20?'red':'green'}}>{v}</span> },
-    { title: 'Giá Bán (Dự kiến)', dataIndex: 'DonGiaNhapGanNhat', render: v => (v * (rules.find(r=>r.MaThamSo==='TiLeGiaBan')?.GiaTri || 105)/100).toLocaleString() }
+    { 
+      title: 'Mã Sách', dataIndex: 'MaSach', key: 'MaSach', width: 80, align: 'center',
+      render: text => <Tag color="blue">#{text}</Tag> 
+    },
+    { 
+      title: 'Tên Sách', dataIndex: 'TenSach', key: 'TenSach', 
+      render: t => <b style={{ fontSize: 15 }}>{t}</b> 
+    },
+    { title: 'Tác Giả', dataIndex: 'TacGia', key: 'TacGia', render: t => <span style={{color: '#666'}}>{t}</span> },
+    { 
+      title: 'Tồn Kho', dataIndex: 'SoLuongTon', key: 'SoLuongTon', 
+      render: v => (
+        <Badge status={v < 20 ? "error" : "success"} text={<span style={{color: v<20?'red':'green', fontWeight: 'bold'}}>{v}</span>} />
+      )
+    },
+    { 
+      title: 'Giá Bán (Dự kiến)', dataIndex: 'DonGiaNhapGanNhat', 
+      render: v => {
+        const giaBan = v * (rules.find(r=>r.MaThamSo==='TiLeGiaBan')?.GiaTri || 105)/100;
+        return <Tag color="gold" style={{fontSize: 14}}>{giaBan.toLocaleString()} ₫</Tag>
+      }
+    }
   ];
 
   const columnsTon = [
-    { title: 'Sách', dataIndex: 'TenSach' },
-    { title: 'Tồn Đầu', dataIndex: 'TonDau' }, { title: 'Nhập', dataIndex: 'PhatSinhNhap' }, { title: 'Xuất', dataIndex: 'PhatSinhXuat' }, { title: 'Tồn Cuối', dataIndex: 'TonCuoi' }
+    { title: 'Sách', dataIndex: 'TenSach', render: t => <b>{t}</b> },
+    { title: 'Tồn Đầu', dataIndex: 'TonDau', align: 'center' }, 
+    { title: 'Nhập', dataIndex: 'PhatSinhNhap', align: 'center', render: v => v>0 ? <span style={{color:'green'}}>+{v}</span> : v }, 
+    { title: 'Xuất', dataIndex: 'PhatSinhXuat', align: 'center', render: v => v>0 ? <span style={{color:'red'}}>-{v}</span> : v }, 
+    { title: 'Tồn Cuối', dataIndex: 'TonCuoi', align: 'center', render: v => <b>{v}</b> }
   ];
+
   const columnsCongNo = [
-    { title: 'Khách Hàng', dataIndex: 'HoTen' },
-    { title: 'Nợ Đầu', dataIndex: 'NoDau', render: v=>v.toLocaleString() }, { title: 'Tăng', dataIndex: 'PhatSinhTang', render: v=>v.toLocaleString() }, { title: 'Giảm', dataIndex: 'PhatSinhGiam', render: v=>v.toLocaleString() }, { title: 'Nợ Cuối', dataIndex: 'NoCuoi', render: v=>v.toLocaleString() }
+    { title: 'Khách Hàng', dataIndex: 'HoTen', render: t => <b>{t}</b> },
+    { title: 'Nợ Đầu', dataIndex: 'NoDau', render: v=>v.toLocaleString() }, 
+    { title: 'Tăng (Mua nợ)', dataIndex: 'PhatSinhTang', render: v => v>0 ? <span style={{color:'red'}}>+{v.toLocaleString()}</span> : v }, 
+    { title: 'Giảm (Trả)', dataIndex: 'PhatSinhGiam', render: v => v>0 ? <span style={{color:'green'}}>-{v.toLocaleString()}</span> : v }, 
+    { title: 'Nợ Cuối', dataIndex: 'NoCuoi', render: v=><Tag color="red">{v.toLocaleString()} ₫</Tag> }
   ];
 
+  // --- GIAO DIỆN CHÍNH (ĐƯỢC THIẾT KẾ LẠI) ---
   return (
-    <div style={{ padding: '20px 50px' }}>
-      <Title level={2}>📚 Quản Lý Nhà Sách</Title>
+    <Layout style={{ minHeight: '100vh' }}>
+      <Header style={{ display: 'flex', alignItems: 'center', background: '#001529', padding: '0 30px' }}>
+         <div style={{ color: 'white', fontSize: 20, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <BookOutlined style={{ fontSize: 24 }} /> QUẢN LÝ NHÀ SÁCH
+         </div>
+      </Header>
+      
+      <Content style={{ padding: '20px 50px', background: '#f0f2f5' }}>
+        <Card style={{ borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+          <Tabs 
+            defaultActiveKey="1" 
+            type="card"
+            size="large"
+            items={[
+            {
+              key: '1',
+              label: <span><HomeOutlined /> QUẢN LÝ NGHIỆP VỤ</span>,
+              children: (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+                    <Input.Search 
+                      placeholder="Tìm kiếm sách, tác giả..." 
+                      allowClear 
+                      enterButton={<Button icon={<SearchOutlined />} type="primary">Tìm</Button>}
+                      size="large"
+                      style={{ maxWidth: 400 }} 
+                      onChange={e => setSearchText(e.target.value)} 
+                    />
+                    
+                    <Space size="middle">
+                        <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>Nhập Sách</Button>
+                        <Button type="primary" size="large" danger icon={<ShoppingCartOutlined />} style={{background: '#faad14', borderColor: '#faad14'}} onClick={() => setIsSellModalOpen(true)}>Bán Sách</Button>
+                        <Button type="primary" size="large" style={{background: '#52c41a', borderColor: '#52c41a'}} icon={<DollarOutlined />} onClick={() => setIsPayModalOpen(true)}>Thu Tiền</Button>
+                    </Space>
+                  </div>
 
-      <Tabs defaultActiveKey="1" items={[
-        {
-          key: '1',
-          label: 'QUẢN LÝ NGHIỆP VỤ',
-          children: (
-            <>
-              <div style={{ gap: 10, display: 'flex', marginBottom: 20, justifyContent: 'space-between' }}>
-                <div style={{display:'flex', gap: 10}}>
-                    <Button type="primary" onClick={() => setIsModalOpen(true)}>+ Nhập Sách</Button>
-                    <Button style={{background: 'orange', color: 'white'}} onClick={() => setIsSellModalOpen(true)}>💲 Bán Sách</Button>
-                    <Button style={{background: 'green', color: 'white'}} onClick={() => setIsPayModalOpen(true)}>💰 Thu Tiền</Button>
+                  <Table 
+                    dataSource={books.filter(b => b.TenSach.toLowerCase().includes(searchText.toLowerCase()) || b.TacGia.toLowerCase().includes(searchText.toLowerCase()))} 
+                    columns={columnsBook} 
+                    rowKey="MaSach" 
+                    loading={loading} 
+                    bordered 
+                    pagination={{ pageSize: 8 }}
+                  />
                 </div>
-                {/* [MỚI] Thanh tìm kiếm sách */}
-                <Input.Search placeholder="Tìm tên sách, tác giả..." style={{ width: 300 }} allowClear onChange={e => setSearchText(e.target.value)} />
-              </div>
-              <Table 
-                dataSource={books.filter(b => b.TenSach.toLowerCase().includes(searchText.toLowerCase()) || b.TacGia.toLowerCase().includes(searchText.toLowerCase()))} 
-                columns={columnsBook} rowKey="MaSach" loading={loading} bordered pagination={{ pageSize: 6 }}
-              />
-            </>
-          )
-        },
-        {
-          key: '2',
-          label: 'BÁO CÁO THỐNG KÊ',
-          children: (
-            <div>
-              <div style={{ marginBottom: 20, display: 'flex', gap: 15, alignItems: 'center', background: '#f5f5f5', padding: 15, borderRadius: 8 }}>
-                 <strong>Loại:</strong>
-                 <Radio.Group value={reportType} onChange={e => { setReportData([]); setReportType(e.target.value); }}>
-                    <Radio.Button value="ton">Tồn Kho</Radio.Button>
-                    <Radio.Button value="congno">Công Nợ</Radio.Button>
-                 </Radio.Group>
-                 <strong>Tháng:</strong><InputNumber min={1} max={12} value={month} onChange={setMonth} />
-                 <strong>Năm:</strong><InputNumber min={2020} value={year} onChange={setYear} />
-                 <Button type="primary" onClick={fetchReport}>Xem Báo Cáo</Button>
-              </div>
-              <Table dataSource={reportData} columns={reportType === 'ton' ? columnsTon : columnsCongNo} rowKey={reportType === 'ton' ? "MaSach" : "MaKhachHang"} loading={loading} bordered />
-            </div>
-          )
-        },
-        {
-          key: '3',
-          label: 'THAY ĐỔI QUY ĐỊNH',
-          children: (
-            <div style={{ maxWidth: 600, margin: '20px auto', border: '1px solid #eee', padding: 30, borderRadius: 10 }}>
-                <h3 style={{textAlign: 'center'}}>⚙️ Cấu Hình Tham Số Hệ Thống</h3>
-                <Form form={ruleForm} layout="horizontal" labelCol={{span: 16}} wrapperCol={{span: 8}} onFinish={handleSaveRules}>
-                    {rules.map(r => (
-                        <Form.Item key={r.MaThamSo} name={r.MaThamSo} label={r.MoTa} rules={[{required: true}]}>
-                            <InputNumber style={{width: '100%'}} />
-                        </Form.Item>
-                    ))}
-                    <Button type="primary" htmlType="submit" block size="large">Lưu Thay Đổi</Button>
-                </Form>
-            </div>
-          )
-        }
-      ]} />
+              )
+            },
+            {
+              key: '2',
+              label: <span><BarChartOutlined /> BÁO CÁO THỐNG KÊ</span>,
+              children: (
+                <div>
+                  <Row gutter={16} style={{ marginBottom: 20 }}>
+                    <Col span={24}>
+                        <Card style={{ background: '#fafafa', borderColor: '#d9d9d9' }}>
+                            <Space size="large" style={{width: '100%', justifyContent: 'center', alignItems: 'center'}}>
+                                <span><BarChartOutlined /> <b>Bộ Lọc Báo Cáo:</b></span>
+                                <Radio.Group value={reportType} onChange={e => { setReportData([]); setReportType(e.target.value); }} buttonStyle="solid">
+                                    <Radio.Button value="ton">Tồn Kho</Radio.Button>
+                                    <Radio.Button value="congno">Công Nợ</Radio.Button>
+                                </Radio.Group>
+                                <span>Tháng:</span> <InputNumber min={1} max={12} value={month} onChange={setMonth} />
+                                <span>Năm:</span> <InputNumber min={2020} value={year} onChange={setYear} />
+                                <Button type="primary" onClick={fetchReport}>Xem Báo Cáo</Button>
+                            </Space>
+                        </Card>
+                    </Col>
+                  </Row>
 
-      {/* --- CÁC MODAL --- */}
+                  {/* Hiển thị tóm tắt nếu có dữ liệu */}
+                  {reportData.length > 0 && (
+                      <Row gutter={16} style={{ marginBottom: 20 }}>
+                        <Col span={12}>
+                            <Card>
+                                <Statistic title={reportType === 'ton' ? "Tổng Số Sách" : "Tổng Khách Hàng"} value={reportData.length} prefix={reportType === 'ton' ? <BookOutlined /> : <UserOutlined />} />
+                            </Card>
+                        </Col>
+                        <Col span={12}>
+                            <Card>
+                                <Statistic 
+                                    title={reportType === 'ton' ? "Tổng Tồn Cuối Kỳ" : "Tổng Nợ Cuối Kỳ"} 
+                                    value={reportData.reduce((sum, item) => sum + (reportType === 'ton' ? item.TonCuoi : item.NoCuoi), 0)} 
+                                    precision={0}
+                                    valueStyle={{ color: reportType === 'ton' ? '#3f8600' : '#cf1322' }}
+                                    suffix={reportType === 'ton' ? "" : "₫"}
+                                />
+                            </Card>
+                        </Col>
+                      </Row>
+                  )}
+
+                  <Table 
+                    dataSource={reportData} 
+                    columns={reportType === 'ton' ? columnsTon : columnsCongNo} 
+                    rowKey={reportType === 'ton' ? "MaSach" : "MaKhachHang"} 
+                    loading={loading} 
+                    bordered 
+                  />
+                </div>
+              )
+            },
+            {
+              key: '3',
+              label: <span><SettingOutlined /> THAY ĐỔI QUY ĐỊNH</span>,
+              children: (
+                <Row justify="center">
+                    <Col span={12}>
+                        <Card title="⚙️ Cấu Hình Tham Số Hệ Thống" bordered={false} style={{ background: '#fff' }}>
+                            <Form form={ruleForm} layout="horizontal" labelCol={{span: 14}} wrapperCol={{span: 10}} onFinish={handleSaveRules}>
+                                {rules.map(r => (
+                                    <Form.Item key={r.MaThamSo} name={r.MaThamSo} label={r.MoTa} rules={[{required: true}]}>
+                                        <InputNumber style={{width: '100%'}} />
+                                    </Form.Item>
+                                ))}
+                                <Button type="primary" htmlType="submit" block size="large" icon={<SettingOutlined />}>Lưu Thay Đổi</Button>
+                            </Form>
+                        </Card>
+                    </Col>
+                </Row>
+              )
+            }
+          ]} />
+        </Card>
+      </Content>
+      
+      <Footer style={{ textAlign: 'center', color: '#888' }}>
+        Bookstore Management System ©2025 Created by Ly Phuoc Thuan & Nguyen Xuan Nhat Tan
+      </Footer>
+
+      {/* --- MODALS (GIỮ NGUYÊN) --- */}
       <Modal title="Lập Phiếu Nhập Sách" open={isModalOpen} onCancel={() => setIsModalOpen(false)} onOk={() => form.submit()}>
         <Form form={form} layout="vertical" onFinish={handleNhapSach}>
             <Form.Item name="maSach" label="Chọn Sách" rules={[{ required: true }]}><Select placeholder="Chọn sách" showSearch optionFilterProp="children">{books.map(b => <Option key={b.MaSach} value={b.MaSach}>{b.TenSach} (Tồn: {b.SoLuongTon})</Option>)}</Select></Form.Item>
@@ -212,6 +310,7 @@ function App() {
           <Form.Item name="maSach" label="Chọn Sách" rules={[{ required: true }]}><Select placeholder="Chọn sách" showSearch optionFilterProp="children">{books.map(b => <Option key={b.MaSach} value={b.MaSach}>{b.TenSach} (Tồn: {b.SoLuongTon})</Option>)}</Select></Form.Item>
           <Form.Item name="soLuong" label="Số Lượng" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={1} /></Form.Item>
           <Form.Item name="soTienTra" label="Tiền Khách Trả" rules={[{ required: true }]} initialValue={0}><InputNumber style={{ width: '100%' }} formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} /></Form.Item>
+          <p style={{color: 'gray', fontSize: 12}}>* Giá bán sẽ tự động tính bằng 105% giá nhập (hoặc theo quy định)</p>
         </Form>
       </Modal>
 
@@ -221,7 +320,7 @@ function App() {
           <Form.Item name="soTienThu" label="Số Tiền Thu" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={1} formatter={v => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} /></Form.Item>
         </Form>
       </Modal>
-    </div>
+    </Layout>
   );
 }
 
