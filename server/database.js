@@ -1,22 +1,25 @@
 // server/database.js
 const mysql = require('mysql2');
 
-// Tạo kết nối
 const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',      // Tên đăng nhập mặc định của XAMPP
-    password: '',      // Mặc định XAMPP không có mật khẩu (để trống)
-    database: 'QuanLyNhaSach', // Tên database em đã tạo trong Workbench
-    multipleStatements: true   // Để chạy được nhiều câu lệnh SQL một lúc
+    host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com', // <-- Thay bằng Host của TiDB
+    port: 4000,                                         // <-- Thay bằng Port của TiDB
+    user: '2RfMS99VErzNfyG.root',                                // <-- Thay bằng User của TiDB
+    password: 'njAb1cZjWXfWrzGZ',                      // <-- Thay bằng Password của TiDB
+    database: 'QuanLyNhaSach',                          // Tên DB em muốn đặt
+    ssl: {
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true
+    },
+    multipleStatements: true
 });
 
-// Mở kết nối
 connection.connect(error => {
     if (error) {
-        console.error('❌ LỖI KẾT NỐI DATABASE:', error);
+        console.error('❌ LỖI KẾT NỐI CLOUD DB:', error);
         return;
     }
-    console.log('✅ ĐÃ KẾT NỐI MYSQL THÀNH CÔNG!');
+    console.log('☁️ ĐÃ KẾT NỐI DATABASE TRÊN MÂY THÀNH CÔNG!');
 });
 
 module.exports = connection;
