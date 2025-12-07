@@ -1,19 +1,74 @@
-/* client/src/index.css */
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap");
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: "Nunito", sans-serif !important;
 }
 
 body {
-  margin: 0;
-  padding: 0;
   width: 100%;
   height: 100vh;
-  background-color: #f0f2f5; /* Màu nền chuẩn Ant Design */
+  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  background-attachment: fixed;
 }
 
 #root {
   width: 100%;
   height: 100%;
+}
+
+/* Tùy chỉnh thanh cuộn */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #0096ff;
+  border-radius: 10px;
+  border: 2px solid #e3f2fd;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* =========================================
+   CẤU HÌNH IN ẤN (FIX LỖI TRẮNG TRANG)
+========================================= */
+
+/* 1. Bình thường: Ẩn vùng in đi để không làm xấu giao diện web */
+#print-area {
+  display: none;
+}
+
+/* 2. Khi bấm lệnh IN (Ctrl + P) */
+@media print {
+  /* Ẩn tất cả mọi thứ trên trang web */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Chỉ hiện vùng in và nội dung bên trong nó */
+  #print-area,
+  #print-area * {
+    visibility: visible;
+  }
+
+  /* Định vị vùng in đè lên toàn bộ trang giấy trắng */
+  #print-area {
+    display: block !important; /* BẮT BUỘC HIỆN */
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    background-color: white;
+    z-index: 9999;
+    padding: 20px;
+  }
+
+  /* Fix lỗi bảng bị mất nét khi in */
+  .ant-table {
+    border: 1px solid #000 !important;
+  }
 }
