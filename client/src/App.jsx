@@ -223,12 +223,14 @@ function App() {
     fetchAll();
   }, [token]);
 
-  // --- LOGIC IN ẤN (Đã tăng thời gian chờ để không bị trắng trang) ---
+  // --- LOGIC IN ẤN ---
   const handlePrint = (type, data) => {
     setPrintContent({
       type,
       data,
       date: new Date().toLocaleDateString("vi-VN"),
+      // QUAN TRỌNG: Lưu lại loại báo cáo lúc bấm in để tránh lỗi khi chuyển tab
+      savedReportType: reportType,
     });
     // Chờ 0.5 giây để React render xong DOM rồi mới in
     setTimeout(() => {
@@ -236,7 +238,7 @@ function App() {
     }, 500);
   };
 
-  // --- HÀM XÁC ĐỊNH CỘT KHI IN ---
+  // --- HÀM XÁC ĐỊNH CỘT KHI IN (ĐÃ FIX LỖI CRASH) ---
   const getPrintColumns = () => {
     if (printContent?.type === "invoice") {
       // Cột cho Hóa đơn
@@ -258,8 +260,8 @@ function App() {
         },
       ];
     } else {
-      // Cột cho Báo cáo (Tùy loại Tồn hay Công nợ)
-      if (reportType === "ton") {
+      // Cột cho Báo cáo (SỬ DỤNG savedReportType THAY VÌ reportType)
+      if (printContent?.savedReportType === "ton") {
         return [
           { title: "STT", render: (t, r, i) => i + 1, width: 50 },
           { title: "Sách", dataIndex: "TenSach" },
@@ -272,32 +274,33 @@ function App() {
         return [
           { title: "STT", render: (t, r, i) => i + 1, width: 50 },
           { title: "Khách Hàng", dataIndex: "HoTen" },
+          // Thêm dấu ? (Optional Chaining) để tránh crash nếu dữ liệu null
           {
             title: "Nợ Đầu",
             dataIndex: "NoDau",
-            render: (v) => v.toLocaleString(),
+            render: (v) => v?.toLocaleString(),
           },
           {
             title: "Phát Sinh Tăng",
             dataIndex: "PhatSinhTang",
-            render: (v) => v.toLocaleString(),
+            render: (v) => v?.toLocaleString(),
           },
           {
             title: "Phát Sinh Giảm",
             dataIndex: "PhatSinhGiam",
-            render: (v) => v.toLocaleString(),
+            render: (v) => v?.toLocaleString(),
           },
           {
             title: "Nợ Cuối",
             dataIndex: "NoCuoi",
-            render: (v) => v.toLocaleString(),
+            render: (v) => v?.toLocaleString(),
           },
         ];
       }
     }
   };
 
-  // --- HANDLERS (Giữ nguyên) ---
+  // --- HANDLERS ---
   const addImportItem = (v) => {
     const b = books.find((i) => i.MaSach === v.maSach);
     if (importItems.find((i) => i.maSach === v.maSach))
@@ -631,7 +634,7 @@ function App() {
 
   return (
     <Layout style={{ minHeight: "100vh", background: "transparent" }}>
-      {/* --- VÙNG IN (CHỈ HIỆN KHI BẤM IN) --- */}
+      {/* --- VÙNG IN (ĐÃ FIX LỖI CRASH) --- */}
       <div id="print-area">
         {printContent && (
           <div style={{ padding: 40, fontFamily: "Times New Roman" }}>
@@ -651,7 +654,7 @@ function App() {
             <Divider style={{ borderColor: "#000" }} />
             <h2 style={{ textAlign: "center", marginBottom: 20 }}>
               {printContent.type === "report"
-                ? reportType === "ton"
+                ? printContent.savedReportType === "ton" // SỬ DỤNG savedReportType
                   ? "BÁO CÁO TỒN KHO"
                   : "BÁO CÁO CÔNG NỢ"
                 : "HÓA ĐƠN GIAO DỊCH"}
@@ -719,7 +722,7 @@ function App() {
               border: `3px solid ${DORA_RED}`,
             }}
           >
-            <img src={IMG_LOGO_BELL} alt="" style={{ width: 50 }} />
+            <img src={IMG_LOGO_BELL} alt="" style={{ width: 25 }} />
           </div>
           <span
             style={{
@@ -756,7 +759,6 @@ function App() {
               borderRadius: 30,
             }}
           >
-            {/* ẢNH AVATAR */}
             <Avatar
               size="large"
               src={IMG_AVATAR_DEFAULT}
@@ -1479,15 +1481,15 @@ function App() {
                                 render: (t, r, i) => i + 1,
                                 width: 50,
                               },
-                              { title: "Khách", dataIndex: "HoTen" },
+                              { title: "Khách Hàng", dataIndex: "HoTen" },
                               {
                                 title: "Nợ Đầu",
                                 dataIndex: "NoDau",
                                 align: "right",
-                                render: (v) => formatMoney(v),
+                                render: (v) => v?.toLocaleString(),
                               },
                               {
-                                title: "Tăng",
+                                title: "Phát Sinh Tăng",
                                 dataIndex: "PhatSinhTang",
                                 align: "right",
                                 render: (v) =>
@@ -1500,7 +1502,7 @@ function App() {
                                   ),
                               },
                               {
-                                title: "Giảm",
+                                title: "Phát Sinh Giảm",
                                 dataIndex: "PhatSinhGiam",
                                 align: "right",
                                 render: (v) =>
