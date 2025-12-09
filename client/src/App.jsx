@@ -50,7 +50,11 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { Header, Content, Footer } = Layout;
 
-// --- DÙNG ẢNH TRONG THƯ MỤC PUBLIC/IMAGES ---
+// --- CẤU HÌNH ĐƯỜNG DẪN API (CHỈ CẦN SỬA 1 DÒNG NÀY) ---
+// const API_URL = "http://localhost:5000/api"; // Dùng dòng này nếu chạy Local
+const API_URL = "https://be-quanlynhasach.onrender.com/api"; // Dùng dòng này nếu chạy Online
+
+// --- ẢNH ---
 const IMG_LOGIN_DORA = "/images/doraemon.png";
 const IMG_LOGO_BELL = "/images/logo.png";
 const IMG_AVATAR_DEFAULT = "/images/avatar.png";
@@ -89,7 +93,6 @@ function App() {
   const [sellForm] = Form.useForm();
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [payForm] = Form.useForm();
-
   const [isCustomerModal, setIsCustomerModal] = useState(false);
   const [custForm] = Form.useForm();
   const [isBookModal, setIsBookModal] = useState(false);
@@ -98,7 +101,6 @@ function App() {
   const [catForm] = Form.useForm();
   const [isUserModal, setIsUserModal] = useState(false);
   const [userForm] = Form.useForm();
-
   const [editingItem, setEditingItem] = useState(null);
 
   // MULTI-ROW
@@ -117,7 +119,6 @@ function App() {
   const [searchText, setSearchText] = useState("");
   const [rules, setRules] = useState([]);
   const [ruleForm] = Form.useForm();
-
   const [printContent, setPrintContent] = useState(null);
 
   // HELPERS
@@ -140,37 +141,31 @@ function App() {
     fetchRules();
     if (isAdmin) fetchUsers();
   };
+
+  // --- SỬA HẾT CÁC ĐƯỜNG DẪN DƯỚI ĐÂY DÙNG BIẾN API_URL ---
   const fetchBooks = async () => {
     setLoading(true);
     try {
-      const r = await axios.get(
-        "https://be-quanlynhasach.onrender.com/api/sach"
-      );
+      const r = await axios.get(`${API_URL}/sach`);
       setBooks(r.data);
     } catch (e) {}
     setLoading(false);
   };
   const fetchCustomers = async () => {
     try {
-      const r = await axios.get(
-        "https://be-quanlynhasach.onrender.com/api/khach-hang"
-      );
+      const r = await axios.get(`${API_URL}/khach-hang`);
       setCustomers(r.data);
     } catch (e) {}
   };
   const fetchCategories = async () => {
     try {
-      const r = await axios.get(
-        "https://be-quanlynhasach.onrender.com/api/the-loai"
-      );
+      const r = await axios.get(`${API_URL}/the-loai`);
       setCategories(r.data);
     } catch (e) {}
   };
   const fetchRules = async () => {
     try {
-      const r = await axios.get(
-        "https://be-quanlynhasach.onrender.com/api/quy-dinh"
-      );
+      const r = await axios.get(`${API_URL}/quy-dinh`);
       setRules(r.data);
       ruleForm.setFieldsValue(
         r.data.reduce((a, c) => ({ ...a, [c.MaThamSo]: c.GiaTri }), {})
@@ -179,9 +174,7 @@ function App() {
   };
   const fetchUsers = async () => {
     try {
-      const r = await axios.get(
-        "https://be-quanlynhasach.onrender.com/api/tai-khoan"
-      );
+      const r = await axios.get(`${API_URL}/tai-khoan`);
       setUsers(r.data);
     } catch (e) {}
   };
@@ -193,9 +186,7 @@ function App() {
         ? `ton?thang=${month}&nam=${year}`
         : `cong-no?thang=${month}&nam=${year}`;
     try {
-      const r = await axios.get(
-        `https://be-quanlynhasach.onrender.com/api/bao-cao/${url}`
-      );
+      const r = await axios.get(`${API_URL}/bao-cao/${url}`);
       setReportData(r.data);
       message.success("Tải xong báo cáo");
     } catch (e) {
@@ -207,28 +198,23 @@ function App() {
   const fetchHistory = async () => {
     try {
       const [r1, r2, r3] = await Promise.all([
-        axios.get("https://be-quanlynhasach.onrender.com/api/lich-su/hoa-don"),
-        axios.get(
-          "https://be-quanlynhasach.onrender.com/api/lich-su/nhap-sach"
-        ),
-        axios.get(
-          "https://be-quanlynhasach.onrender.com/api/lich-su/phieu-thu"
-        ),
+        axios.get(`${API_URL}/lich-su/hoa-don`),
+        axios.get(`${API_URL}/lich-su/nhap-sach`),
+        axios.get(`${API_URL}/lich-su/phieu-thu`),
       ]);
       setHistoryInvoices(r1.data);
       setHistoryImports(r2.data);
       setHistoryReceipts(r3.data);
     } catch (e) {}
   };
+
   const fetchDetail = async (id, type) => {
     try {
       const u =
         type === "hoadon"
           ? `chi-tiet-hoa-don/${id}`
           : `chi-tiet-phieu-nhap/${id}`;
-      const r = await axios.get(
-        `https://be-quanlynhasach.onrender.com/api/${u}`
-      );
+      const r = await axios.get(`${API_URL}/${u}`);
       setDetailData(r.data);
       setDetailType(type);
       setIsDetailModal(true);
@@ -241,25 +227,21 @@ function App() {
     fetchAll();
   }, [token]);
 
-  // --- LOGIC IN ẤN ---
+  // LOGIC IN ẤN
   const handlePrint = (type, data) => {
     setPrintContent({
       type,
       data,
       date: new Date().toLocaleDateString("vi-VN"),
-      // QUAN TRỌNG: Lưu lại loại báo cáo lúc bấm in để tránh lỗi khi chuyển tab
       savedReportType: reportType,
     });
-    // Chờ 0.5 giây để React render xong DOM rồi mới in
     setTimeout(() => {
       window.print();
     }, 500);
   };
 
-  // --- HÀM XÁC ĐỊNH CỘT KHI IN (ĐÃ FIX LỖI CRASH) ---
   const getPrintColumns = () => {
     if (printContent?.type === "invoice") {
-      // Cột cho Hóa đơn
       return [
         { title: "Sách", dataIndex: "TenSach" },
         {
@@ -278,33 +260,31 @@ function App() {
         },
       ];
     } else {
-      // Cột cho Báo cáo (SỬ DỤNG savedReportType THAY VÌ reportType)
       if (printContent?.savedReportType === "ton") {
         return [
           { title: "STT", render: (t, r, i) => i + 1, width: 50 },
           { title: "Sách", dataIndex: "TenSach" },
           { title: "Tồn Đầu", dataIndex: "TonDau" },
-          { title: "Phát Sinh Nhập", dataIndex: "PhatSinhNhap" },
-          { title: "Phát Sinh Xuất", dataIndex: "PhatSinhXuat" },
+          { title: "Nhập", dataIndex: "PhatSinhNhap" },
+          { title: "Xuất", dataIndex: "PhatSinhXuat" },
           { title: "Tồn Cuối", dataIndex: "TonCuoi" },
         ];
       } else {
         return [
           { title: "STT", render: (t, r, i) => i + 1, width: 50 },
           { title: "Khách Hàng", dataIndex: "HoTen" },
-          // Thêm dấu ? (Optional Chaining) để tránh crash nếu dữ liệu null
           {
             title: "Nợ Đầu",
             dataIndex: "NoDau",
             render: (v) => v?.toLocaleString(),
           },
           {
-            title: "Phát Sinh Tăng",
+            title: "Tăng",
             dataIndex: "PhatSinhTang",
             render: (v) => v?.toLocaleString(),
           },
           {
-            title: "Phát Sinh Giảm",
+            title: "Giảm",
             dataIndex: "PhatSinhGiam",
             render: (v) => v?.toLocaleString(),
           },
@@ -318,7 +298,7 @@ function App() {
     }
   };
 
-  // --- HANDLERS ---
+  // HANDLERS
   const addImportItem = (v) => {
     const b = books.find((i) => i.MaSach === v.maSach);
     if (importItems.find((i) => i.maSach === v.maSach))
@@ -332,7 +312,7 @@ function App() {
   const submitImport = async () => {
     if (importItems.length === 0) return message.error("Trống");
     try {
-      await axios.post("https://be-quanlynhasach.onrender.com/api/nhap-sach", {
+      await axios.post(`${API_URL}/nhap-sach`, {
         danhSachSachNhap: importItems,
       });
       message.success("Thành công");
@@ -368,7 +348,7 @@ function App() {
     if (!selectedCustomer || saleItems.length === 0)
       return message.error("Thiếu thông tin");
     try {
-      await axios.post("https://be-quanlynhasach.onrender.com/api/ban-sach", {
+      await axios.post(`${API_URL}/ban-sach`, {
         maKhachHang: selectedCustomer,
         soTienTra: paymentAmount,
         danhSachSachBan: saleItems,
@@ -385,12 +365,11 @@ function App() {
       handleError(e, "Bán sách");
     }
   };
+
+  // --- ĐÂY LÀ CHỖ SỬA QUAN TRỌNG NHẤT: handleLogin ---
   const handleLogin = async (v) => {
     try {
-      const r = await axios.post(
-        "https://be-quanlynhasach.onrender.com/api/login",
-        v
-      );
+      const r = await axios.post(`${API_URL}/login`, v); // Sử dụng biến API_URL
       sessionStorage.setItem("token", r.data.token);
       sessionStorage.setItem("user", JSON.stringify(r.data.user));
       setToken(r.data.token);
@@ -400,22 +379,17 @@ function App() {
       handleError(e, "Đăng nhập");
     }
   };
+
   const handleLogout = () => {
     sessionStorage.clear();
     setToken(null);
   };
+
   const saveCustomer = async (v) => {
     try {
       if (editingItem)
-        await axios.put(
-          `https://be-quanlynhasach.onrender.com/api/khach-hang/${editingItem.MaKhachHang}`,
-          v
-        );
-      else
-        await axios.post(
-          "https://be-quanlynhasach.onrender.com/api/khach-hang",
-          v
-        );
+        await axios.put(`${API_URL}/khach-hang/${editingItem.MaKhachHang}`, v);
+      else await axios.post(`${API_URL}/khach-hang`, v);
       message.success("Thành công");
       setIsCustomerModal(false);
       fetchCustomers();
@@ -425,9 +399,7 @@ function App() {
   };
   const deleteCustomer = async (id) => {
     try {
-      await axios.delete(
-        `https://be-quanlynhasach.onrender.com/api/khach-hang/${id}`
-      );
+      await axios.delete(`${API_URL}/khach-hang/${id}`);
       message.success("Đã xóa");
       fetchCustomers();
     } catch (e) {
@@ -437,15 +409,8 @@ function App() {
   const saveCategory = async (v) => {
     try {
       if (editingItem)
-        await axios.put(
-          `https://be-quanlynhasach.onrender.com/api/the-loai/${editingItem.MaTheLoai}`,
-          v
-        );
-      else
-        await axios.post(
-          "https://be-quanlynhasach.onrender.com/api/the-loai",
-          v
-        );
+        await axios.put(`${API_URL}/the-loai/${editingItem.MaTheLoai}`, v);
+      else await axios.post(`${API_URL}/the-loai`, v);
       message.success("Thành công");
       setIsCatModal(false);
       fetchCategories();
@@ -455,9 +420,7 @@ function App() {
   };
   const deleteCategory = async (id) => {
     try {
-      await axios.delete(
-        `https://be-quanlynhasach.onrender.com/api/the-loai/${id}`
-      );
+      await axios.delete(`${API_URL}/the-loai/${id}`);
       message.success("Đã xóa");
       fetchCategories();
     } catch (e) {
@@ -467,12 +430,8 @@ function App() {
   const saveBook = async (v) => {
     try {
       if (editingItem)
-        await axios.put(
-          `https://be-quanlynhasach.onrender.com/api/sach/${editingItem.MaSach}`,
-          v
-        );
-      else
-        await axios.post("https://be-quanlynhasach.onrender.com/api/sach", v);
+        await axios.put(`${API_URL}/sach/${editingItem.MaSach}`, v);
+      else await axios.post(`${API_URL}/sach`, v);
       message.success("Thành công");
       setIsBookModal(false);
       fetchBooks();
@@ -482,9 +441,7 @@ function App() {
   };
   const deleteBook = async (id) => {
     try {
-      await axios.delete(
-        `https://be-quanlynhasach.onrender.com/api/sach/${id}`
-      );
+      await axios.delete(`${API_URL}/sach/${id}`);
       message.success("Đã xóa");
       fetchBooks();
     } catch (e) {
@@ -493,10 +450,7 @@ function App() {
   };
   const saveUser = async (v) => {
     try {
-      await axios.post(
-        "https://be-quanlynhasach.onrender.com/api/tai-khoan",
-        v
-      );
+      await axios.post(`${API_URL}/tai-khoan`, v);
       message.success("Thành công");
       setIsUserModal(false);
       fetchUsers();
@@ -506,9 +460,7 @@ function App() {
   };
   const deleteUser = async (id) => {
     try {
-      await axios.delete(
-        `https://be-quanlynhasach.onrender.com/api/tai-khoan/${id}`
-      );
+      await axios.delete(`${API_URL}/tai-khoan/${id}`);
       message.success("Đã xóa");
       fetchUsers();
     } catch (e) {
@@ -517,7 +469,7 @@ function App() {
   };
   const handleThu = async (v) => {
     try {
-      await axios.post("https://be-quanlynhasach.onrender.com/api/thu-tien", v);
+      await axios.post(`${API_URL}/thu-tien`, v);
       message.success("Thành công");
       setIsPayModalOpen(false);
       payForm.resetFields();
@@ -529,9 +481,7 @@ function App() {
   };
   const handleRules = async (v) => {
     try {
-      await axios.post("https://be-quanlynhasach.onrender.com/api/quy-dinh", {
-        quyDinh: v,
-      });
+      await axios.post(`${API_URL}/quy-dinh`, { quyDinh: v });
       message.success("Thành công");
       fetchRules();
     } catch (e) {
@@ -677,7 +627,7 @@ function App() {
 
   return (
     <Layout style={{ minHeight: "100vh", background: "transparent" }}>
-      {/* --- VÙNG IN (ĐÃ FIX LỖI CRASH) --- */}
+      {/* VÙNG IN */}
       <div id="print-area">
         {printContent && (
           <div style={{ padding: 40, fontFamily: "Times New Roman" }}>
@@ -697,7 +647,7 @@ function App() {
             <Divider style={{ borderColor: "#000" }} />
             <h2 style={{ textAlign: "center", marginBottom: 20 }}>
               {printContent.type === "report"
-                ? printContent.savedReportType === "ton" // SỬ DỤNG savedReportType
+                ? printContent.savedReportType === "ton"
                   ? "BÁO CÁO TỒN KHO"
                   : "BÁO CÁO CÔNG NỢ"
                 : "HÓA ĐƠN GIAO DỊCH"}
@@ -705,7 +655,6 @@ function App() {
             <p style={{ textAlign: "center", marginBottom: 20 }}>
               Ngày in: {printContent.date}
             </p>
-
             <Table
               dataSource={printContent.data}
               pagination={false}
@@ -713,7 +662,6 @@ function App() {
               size="small"
               columns={getPrintColumns()}
             />
-
             <br />
             <br />
             <Row>
@@ -1524,15 +1472,15 @@ function App() {
                                 render: (t, r, i) => i + 1,
                                 width: 50,
                               },
-                              { title: "Khách Hàng", dataIndex: "HoTen" },
+                              { title: "Khách", dataIndex: "HoTen" },
                               {
                                 title: "Nợ Đầu",
                                 dataIndex: "NoDau",
                                 align: "right",
-                                render: (v) => v?.toLocaleString(),
+                                render: (v) => formatMoney(v),
                               },
                               {
-                                title: "Phát Sinh Tăng",
+                                title: "Tăng",
                                 dataIndex: "PhatSinhTang",
                                 align: "right",
                                 render: (v) =>
@@ -1545,7 +1493,7 @@ function App() {
                                   ),
                               },
                               {
-                                title: "Phát Sinh Giảm",
+                                title: "Giảm",
                                 dataIndex: "PhatSinhGiam",
                                 align: "right",
                                 render: (v) =>
@@ -1638,7 +1586,7 @@ function App() {
         Made by TuTi team ©2025
       </Footer>
 
-      {/* MODAL NHẬP HÀNG */}
+      {/* MODALS */}
       <Modal
         title="Nhập Sách Vào Kho"
         open={isModalOpen}
@@ -1752,8 +1700,6 @@ function App() {
           )}
         />
       </Modal>
-
-      {/* MODAL BÁN HÀNG */}
       <Modal
         title="Lập Hóa Đơn Bán"
         open={isSellModalOpen}
@@ -1884,8 +1830,6 @@ function App() {
           </div>
         </div>
       </Modal>
-
-      {/* MODAL KHÁC */}
       <Modal
         title="Thu Tiền Nợ"
         open={isPayModalOpen}
@@ -2040,8 +1984,6 @@ function App() {
           </Form.Item>
         </Form>
       </Modal>
-
-      {/* MODAL CHI TIẾT & IN */}
       <Modal
         title="Chi Tiết"
         open={isDetailModal}
