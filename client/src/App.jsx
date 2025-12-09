@@ -144,7 +144,7 @@ function App() {
     setLoading(true);
     try {
       const r = await axios.get(
-        "http://https://be-quanlynhasach.onrender.com/api/sach"
+        "https://be-quanlynhasach.onrender.com/api/sach"
       );
       setBooks(r.data);
     } catch (e) {}
@@ -153,7 +153,7 @@ function App() {
   const fetchCustomers = async () => {
     try {
       const r = await axios.get(
-        "http://https://be-quanlynhasach.onrender.com/api/khach-hang"
+        "https://be-quanlynhasach.onrender.com/api/khach-hang"
       );
       setCustomers(r.data);
     } catch (e) {}
@@ -161,7 +161,7 @@ function App() {
   const fetchCategories = async () => {
     try {
       const r = await axios.get(
-        "http://https://be-quanlynhasach.onrender.com/api/the-loai"
+        "https://be-quanlynhasach.onrender.com/api/the-loai"
       );
       setCategories(r.data);
     } catch (e) {}
@@ -169,7 +169,7 @@ function App() {
   const fetchRules = async () => {
     try {
       const r = await axios.get(
-        "http://https://be-quanlynhasach.onrender.com/api/quy-dinh"
+        "https://be-quanlynhasach.onrender.com/api/quy-dinh"
       );
       setRules(r.data);
       ruleForm.setFieldsValue(
@@ -180,7 +180,7 @@ function App() {
   const fetchUsers = async () => {
     try {
       const r = await axios.get(
-        "http://https://be-quanlynhasach.onrender.com/api/tai-khoan"
+        "https://be-quanlynhasach.onrender.com/api/tai-khoan"
       );
       setUsers(r.data);
     } catch (e) {}
@@ -194,7 +194,7 @@ function App() {
         : `cong-no?thang=${month}&nam=${year}`;
     try {
       const r = await axios.get(
-        `http://https://be-quanlynhasach.onrender.com/api/bao-cao/${url}`
+        `https://be-quanlynhasach.onrender.com/api/bao-cao/${url}`
       );
       setReportData(r.data);
       message.success("Tải xong báo cáo");
@@ -207,14 +207,12 @@ function App() {
   const fetchHistory = async () => {
     try {
       const [r1, r2, r3] = await Promise.all([
+        axios.get("https://be-quanlynhasach.onrender.com/api/lich-su/hoa-don"),
         axios.get(
-          "http://https://be-quanlynhasach.onrender.com/api/lich-su/hoa-don"
+          "https://be-quanlynhasach.onrender.com/api/lich-su/nhap-sach"
         ),
         axios.get(
-          "http://https://be-quanlynhasach.onrender.com/api/lich-su/nhap-sach"
-        ),
-        axios.get(
-          "http://https://be-quanlynhasach.onrender.com/api/lich-su/phieu-thu"
+          "https://be-quanlynhasach.onrender.com/api/lich-su/phieu-thu"
         ),
       ]);
       setHistoryInvoices(r1.data);
@@ -229,7 +227,7 @@ function App() {
           ? `chi-tiet-hoa-don/${id}`
           : `chi-tiet-phieu-nhap/${id}`;
       const r = await axios.get(
-        `http://https://be-quanlynhasach.onrender.com/api/${u}`
+        `https://be-quanlynhasach.onrender.com/api/${u}`
       );
       setDetailData(r.data);
       setDetailType(type);
@@ -334,12 +332,9 @@ function App() {
   const submitImport = async () => {
     if (importItems.length === 0) return message.error("Trống");
     try {
-      await axios.post(
-        "http://https://be-quanlynhasach.onrender.com/api/nhap-sach",
-        {
-          danhSachSachNhap: importItems,
-        }
-      );
+      await axios.post("https://be-quanlynhasach.onrender.com/api/nhap-sach", {
+        danhSachSachNhap: importItems,
+      });
       message.success("Thành công");
       setIsModalOpen(false);
       setImportItems([]);
@@ -373,14 +368,11 @@ function App() {
     if (!selectedCustomer || saleItems.length === 0)
       return message.error("Thiếu thông tin");
     try {
-      await axios.post(
-        "http://https://be-quanlynhasach.onrender.com/api/ban-sach",
-        {
-          maKhachHang: selectedCustomer,
-          soTienTra: paymentAmount,
-          danhSachSachBan: saleItems,
-        }
-      );
+      await axios.post("https://be-quanlynhasach.onrender.com/api/ban-sach", {
+        maKhachHang: selectedCustomer,
+        soTienTra: paymentAmount,
+        danhSachSachBan: saleItems,
+      });
       message.success("Thành công! Vào Lịch Sử để In Hóa Đơn");
       setIsSellModalOpen(false);
       setSaleItems([]);
@@ -396,7 +388,7 @@ function App() {
   const handleLogin = async (v) => {
     try {
       const r = await axios.post(
-        "http://https://be-quanlynhasach.onrender.com/api/login",
+        "https://be-quanlynhasach.onrender.com/api/login",
         v
       );
       sessionStorage.setItem("token", r.data.token);
@@ -416,12 +408,12 @@ function App() {
     try {
       if (editingItem)
         await axios.put(
-          `http://https://be-quanlynhasach.onrender.com/api/khach-hang/${editingItem.MaKhachHang}`,
+          `https://be-quanlynhasach.onrender.com/api/khach-hang/${editingItem.MaKhachHang}`,
           v
         );
       else
         await axios.post(
-          "http://https://be-quanlynhasach.onrender.com/api/khach-hang",
+          "https://be-quanlynhasach.onrender.com/api/khach-hang",
           v
         );
       message.success("Thành công");
@@ -434,7 +426,7 @@ function App() {
   const deleteCustomer = async (id) => {
     try {
       await axios.delete(
-        `http://https://be-quanlynhasach.onrender.com/api/khach-hang/${id}`
+        `https://be-quanlynhasach.onrender.com/api/khach-hang/${id}`
       );
       message.success("Đã xóa");
       fetchCustomers();
@@ -446,12 +438,12 @@ function App() {
     try {
       if (editingItem)
         await axios.put(
-          `http://https://be-quanlynhasach.onrender.com/api/the-loai/${editingItem.MaTheLoai}`,
+          `https://be-quanlynhasach.onrender.com/api/the-loai/${editingItem.MaTheLoai}`,
           v
         );
       else
         await axios.post(
-          "http://https://be-quanlynhasach.onrender.com/api/the-loai",
+          "https://be-quanlynhasach.onrender.com/api/the-loai",
           v
         );
       message.success("Thành công");
@@ -464,7 +456,7 @@ function App() {
   const deleteCategory = async (id) => {
     try {
       await axios.delete(
-        `http://https://be-quanlynhasach.onrender.com/api/the-loai/${id}`
+        `https://be-quanlynhasach.onrender.com/api/the-loai/${id}`
       );
       message.success("Đã xóa");
       fetchCategories();
@@ -476,14 +468,11 @@ function App() {
     try {
       if (editingItem)
         await axios.put(
-          `http://https://be-quanlynhasach.onrender.com/api/sach/${editingItem.MaSach}`,
+          `https://be-quanlynhasach.onrender.com/api/sach/${editingItem.MaSach}`,
           v
         );
       else
-        await axios.post(
-          "http://https://be-quanlynhasach.onrender.com/api/sach",
-          v
-        );
+        await axios.post("https://be-quanlynhasach.onrender.com/api/sach", v);
       message.success("Thành công");
       setIsBookModal(false);
       fetchBooks();
@@ -494,7 +483,7 @@ function App() {
   const deleteBook = async (id) => {
     try {
       await axios.delete(
-        `http://https://be-quanlynhasach.onrender.com/api/sach/${id}`
+        `https://be-quanlynhasach.onrender.com/api/sach/${id}`
       );
       message.success("Đã xóa");
       fetchBooks();
@@ -505,7 +494,7 @@ function App() {
   const saveUser = async (v) => {
     try {
       await axios.post(
-        "http://https://be-quanlynhasach.onrender.com/api/tai-khoan",
+        "https://be-quanlynhasach.onrender.com/api/tai-khoan",
         v
       );
       message.success("Thành công");
@@ -518,7 +507,7 @@ function App() {
   const deleteUser = async (id) => {
     try {
       await axios.delete(
-        `http://https://be-quanlynhasach.onrender.com/api/tai-khoan/${id}`
+        `https://be-quanlynhasach.onrender.com/api/tai-khoan/${id}`
       );
       message.success("Đã xóa");
       fetchUsers();
@@ -528,10 +517,7 @@ function App() {
   };
   const handleThu = async (v) => {
     try {
-      await axios.post(
-        "http://https://be-quanlynhasach.onrender.com/api/thu-tien",
-        v
-      );
+      await axios.post("https://be-quanlynhasach.onrender.com/api/thu-tien", v);
       message.success("Thành công");
       setIsPayModalOpen(false);
       payForm.resetFields();
@@ -543,10 +529,9 @@ function App() {
   };
   const handleRules = async (v) => {
     try {
-      await axios.post(
-        "http://https://be-quanlynhasach.onrender.com/api/quy-dinh",
-        { quyDinh: v }
-      );
+      await axios.post("https://be-quanlynhasach.onrender.com/api/quy-dinh", {
+        quyDinh: v,
+      });
       message.success("Thành công");
       fetchRules();
     } catch (e) {
