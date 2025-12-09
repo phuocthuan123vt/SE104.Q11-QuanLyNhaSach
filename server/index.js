@@ -56,7 +56,7 @@ app.get("/api/sach", async (req, res) => {
   try {
     res.json(
       await query(
-        "SELECT s.*, tl.TenTheLoai FROM SACH s LEFT JOIN THE_LOAI tl ON s.MaTheLoai = tl.MaTheLoai ORDER BY s.MaSach DESC"
+        "SELECT s.*, tl.TenTheLoai FROM SACH s LEFT JOIN THE_LOAI tl ON s.MaTheLoai = tl.MaTheLoai ORDER BY s.MaSach ASC"
       )
     );
   } catch (e) {
@@ -65,7 +65,7 @@ app.get("/api/sach", async (req, res) => {
 });
 app.get("/api/khach-hang", async (req, res) => {
   try {
-    res.json(await query("SELECT * FROM KHACH_HANG ORDER BY MaKhachHang DESC"));
+    res.json(await query("SELECT * FROM KHACH_HANG ORDER BY MaKhachHang ASC"));
   } catch (e) {
     res.status(500).json(e);
   }
