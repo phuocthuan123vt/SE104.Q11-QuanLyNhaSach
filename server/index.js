@@ -12,6 +12,10 @@ const SECRET_KEY = "doan-tot-nghiep-2024";
 app.use(cors());
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("✅ Server Quản Lý Nhà Sách đang chạy ổn định!");
+});
+
 // --- HELPER ĐỂ CHẠY QUERY THƯỜNG ---
 // Dùng cho các API GET đơn giản
 async function query(sql, params) {
