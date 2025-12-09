@@ -1,7 +1,6 @@
-// server/index.js
 const express = require("express");
 const cors = require("cors");
-const db = require("./database");
+const db = require("./database"); // Lúc này db là một Pool
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -13,17 +12,19 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("✅ Server Quản Lý Nhà Sách đang chạy ổn định!");
+  res.send(
+    "✅ Server Quản Lý Nhà Sách đang chạy ổn định (Mode: Connection Pool)!"
+  );
 });
 
-// --- HELPER ĐỂ CHẠY QUERY THƯỜNG ---
-// Dùng cho các API GET đơn giản
+// --- HELPER CHO QUERY THƯỜNG ---
+// Pool tự động lấy kết nối và thực thi
 async function query(sql, params) {
   const [rows] = await db.promise().query(sql, params);
   return rows;
 }
 
-// --- 1. AUTHENTICATION (ĐĂNG NHẬP) ---
+// --- 1. AUTH ---
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -32,11 +33,9 @@ app.post("/api/login", async (req, res) => {
     ]);
     if (users.length === 0)
       return res.status(401).json({ error: "Tài khoản không tồn tại!" });
-
     const isMatch = await bcrypt.compare(password, users[0].MatKhau);
     if (!isMatch)
       return res.status(401).json({ error: "Mật khẩu không đúng!" });
-
     const token = jwt.sign(
       { id: users[0].Id, role: users[0].Quyen },
       SECRET_KEY,
@@ -52,7 +51,7 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// --- 2. CÁC API DANH MỤC (GET) ---
+// --- 2. API GET ---
 app.get("/api/sach", async (req, res) => {
   try {
     res.json(
@@ -95,8 +94,7 @@ app.get("/api/tai-khoan", async (req, res) => {
   }
 });
 
-// --- 3. CÁC API CRUD ĐƠN GIẢN (POST/PUT/DELETE) ---
-// Sách
+// --- 3. API CRUD ĐƠN GIẢN ---
 app.post("/api/sach", async (req, res) => {
   const { TenSach, MaTheLoai, TacGia, DonGiaNhapGanNhat } = req.body;
   try {
@@ -104,7 +102,7 @@ app.post("/api/sach", async (req, res) => {
       "INSERT INTO SACH (TenSach, MaTheLoai, TacGia, SoLuongTon, DonGiaNhapGanNhat) VALUES (?, ?, ?, 0, ?)",
       [TenSach, MaTheLoai, TacGia, DonGiaNhapGanNhat || 0]
     );
-    res.json({ message: "Thêm sách thành công" });
+    res.json({ message: "Thành công" });
   } catch (e) {
     res.status(500).json(e);
   }
@@ -116,7 +114,7 @@ app.put("/api/sach/:id", async (req, res) => {
       "UPDATE SACH SET TenSach=?, MaTheLoai=?, TacGia=? WHERE MaSach=?",
       [TenSach, MaTheLoai, TacGia, req.params.id]
     );
-    res.json({ message: "Cập nhật thành công" });
+    res.json({ message: "Thành công" });
   } catch (e) {
     res.status(500).json(e);
   }
@@ -124,13 +122,12 @@ app.put("/api/sach/:id", async (req, res) => {
 app.delete("/api/sach/:id", async (req, res) => {
   try {
     await query("DELETE FROM SACH WHERE MaSach=?", [req.params.id]);
-    res.json({ message: "Đã xóa" });
+    res.json({ message: "Thành công" });
   } catch (e) {
     res.status(400).json({ error: "Không thể xóa sách đã có giao dịch" });
   }
 });
 
-// Khách hàng
 app.post("/api/khach-hang", async (req, res) => {
   const { hoTen, diaChi, soDienThoai, email } = req.body;
   try {
@@ -138,7 +135,7 @@ app.post("/api/khach-hang", async (req, res) => {
       "INSERT INTO KHACH_HANG (HoTen, DiaChi, SoDienThoai, Email, TienNoHienTai) VALUES (?, ?, ?, ?, 0)",
       [hoTen, diaChi, soDienThoai, email]
     );
-    res.json({ message: "Thêm thành công" });
+    res.json({ message: "Thành công" });
   } catch (e) {
     res.status(500).json(e);
   }
@@ -150,7 +147,7 @@ app.put("/api/khach-hang/:id", async (req, res) => {
       "UPDATE KHACH_HANG SET HoTen=?, DiaChi=?, SoDienThoai=?, Email=? WHERE MaKhachHang=?",
       [HoTen, DiaChi, SoDienThoai, Email, req.params.id]
     );
-    res.json({ message: "Cập nhật thành công" });
+    res.json({ message: "Thành công" });
   } catch (e) {
     res.status(500).json(e);
   }
@@ -158,19 +155,18 @@ app.put("/api/khach-hang/:id", async (req, res) => {
 app.delete("/api/khach-hang/:id", async (req, res) => {
   try {
     await query("DELETE FROM KHACH_HANG WHERE MaKhachHang=?", [req.params.id]);
-    res.json({ message: "Đã xóa" });
+    res.json({ message: "Thành công" });
   } catch (e) {
-    res.status(400).json({ error: "Khách đang có nợ/hóa đơn" });
+    res.status(400).json({ error: "Khách đang có nợ" });
   }
 });
 
-// Thể loại
 app.post("/api/the-loai", async (req, res) => {
   try {
     await query("INSERT INTO THE_LOAI (TenTheLoai) VALUES (?)", [
       req.body.tenTheLoai,
     ]);
-    res.json({ message: "Thêm thành công" });
+    res.json({ message: "Thành công" });
   } catch (e) {
     res.status(500).json(e);
   }
@@ -181,7 +177,7 @@ app.put("/api/the-loai/:id", async (req, res) => {
       req.body.tenTheLoai,
       req.params.id,
     ]);
-    res.json({ message: "Cập nhật thành công" });
+    res.json({ message: "Thành công" });
   } catch (e) {
     res.status(500).json(e);
   }
@@ -189,13 +185,12 @@ app.put("/api/the-loai/:id", async (req, res) => {
 app.delete("/api/the-loai/:id", async (req, res) => {
   try {
     await query("DELETE FROM THE_LOAI WHERE MaTheLoai=?", [req.params.id]);
-    res.json({ message: "Đã xóa" });
+    res.json({ message: "Thành công" });
   } catch (e) {
-    res.status(400).json({ error: "Thể loại đang có sách" });
+    res.status(400).json({ error: "Thể loại có sách" });
   }
 });
 
-// User & Quy định
 app.post("/api/tai-khoan", async (req, res) => {
   const { tenDangNhap, matKhau, hoTen, quyen } = req.body;
   try {
@@ -205,7 +200,7 @@ app.post("/api/tai-khoan", async (req, res) => {
       "INSERT INTO TAI_KHOAN (TenDangNhap, MatKhau, HoTen, Quyen) VALUES (?, ?, ?, ?)",
       [tenDangNhap, hash, hoTen, quyen]
     );
-    res.json({ message: "Tạo thành công" });
+    res.json({ message: "Thành công" });
   } catch (e) {
     res.status(500).json(e);
   }
@@ -218,6 +213,7 @@ app.delete("/api/tai-khoan/:id", async (req, res) => {
     res.status(500).json(e);
   }
 });
+
 app.post("/api/quy-dinh", async (req, res) => {
   const { quyDinh } = req.body;
   try {
@@ -229,62 +225,47 @@ app.post("/api/quy-dinh", async (req, res) => {
   }
 });
 
-// --- 4. NGHIỆP VỤ PHỨC TẠP (SỬ DỤNG TRANSACTION + ASYNC/AWAIT) ---
-// Đây là phần sửa lỗi chính: Dùng connection.promise() xuyên suốt
+// --- 4. NGHIỆP VỤ PHỨC TẠP (POOL TRANSACTION) ---
+// QUAN TRỌNG: Phải dùng db.promise().getConnection()
 
 // 4.1. NHẬP SÁCH
 app.post("/api/nhap-sach", async (req, res) => {
   const { danhSachSachNhap } = req.body;
   let tongTien = danhSachSachNhap.reduce((s, i) => s + i.soLuong * i.donGia, 0);
 
-  const conn = db.promise(); // Lấy connection hỗ trợ Promise
+  let conn;
   try {
-    await conn.beginTransaction(); // Bắt đầu transaction
+    conn = await db.promise().getConnection(); // Mượn kết nối
+    await conn.beginTransaction();
 
-    // 1. Kiểm tra quy định Nhập (QĐ1) - Kiểm tra từng sách
     const [thamSo] = await conn.query("SELECT * FROM THAM_SO");
     const QD = {};
     thamSo.forEach((r) => (QD[r.MaThamSo] = r.GiaTri));
 
     for (let item of danhSachSachNhap) {
-      // Kiểm tra số lượng nhập tối thiểu
-      if (item.soLuong < QD["MinNhap"]) {
-        throw new Error(
-          `Sách ${item.tenSach || item.maSach}: Số lượng nhập phải >= ${
-            QD["MinNhap"]
-          }`
-        );
-      }
-
-      // Kiểm tra tồn kho tối đa trước khi nhập
+      if (item.soLuong < QD["MinNhap"])
+        throw new Error(`Sách ${item.tenSach}: Nhập < ${QD["MinNhap"]}`);
       const [sachDB] = await conn.query(
         "SELECT SoLuongTon FROM SACH WHERE MaSach = ?",
         [item.maSach]
       );
-      if (sachDB.length > 0 && sachDB[0].SoLuongTon > QD["MinTonTruocNhap"]) {
+      if (sachDB[0].SoLuongTon > QD["MinTonTruocNhap"])
         throw new Error(
-          `Sách ${item.tenSach || item.maSach}: Tồn kho (${
-            sachDB[0].SoLuongTon
-          }) còn nhiều hơn quy định (${
-            QD["MinTonTruocNhap"]
-          }), không được nhập!`
+          `Sách ${item.tenSach}: Tồn > ${QD["MinTonTruocNhap"]}, không được nhập`
         );
-      }
     }
 
-    // 2. Tạo Phiếu Nhập
-    const [resultPhieu] = await conn.query(
+    const [r] = await conn.query(
       "INSERT INTO PHIEU_NHAP (TongTien) VALUES (?)",
       [tongTien]
     );
-    const maPhieu = resultPhieu.insertId;
+    const maPhieu = r.insertId;
 
-    // 3. Lưu chi tiết & Cập nhật kho
     for (let item of danhSachSachNhap) {
-      const thanhTien = item.soLuong * item.donGia;
+      const tt = item.soLuong * item.donGia;
       await conn.query(
         "INSERT INTO CT_PHIEU_NHAP (MaPhieuNhap, MaSach, SoLuongNhap, DonGiaNhap, ThanhTien) VALUES (?, ?, ?, ?, ?)",
-        [maPhieu, item.maSach, item.soLuong, item.donGia, thanhTien]
+        [maPhieu, item.maSach, item.soLuong, item.donGia, tt]
       );
       await conn.query(
         "UPDATE SACH SET SoLuongTon = SoLuongTon + ?, DonGiaNhapGanNhat = ? WHERE MaSach = ?",
@@ -292,106 +273,90 @@ app.post("/api/nhap-sach", async (req, res) => {
       );
     }
 
-    await conn.commit(); // Lưu tất cả
-    res.json({ message: "Nhập sách thành công!" });
-  } catch (error) {
-    await conn.rollback(); // Gặp lỗi thì hủy hết
-    // Trả về lỗi chi tiết để Frontend hiển thị
-    res.status(400).json({ error: error.message || "Lỗi nhập sách" });
+    await conn.commit();
+    res.json({ message: "Nhập thành công" });
+  } catch (e) {
+    if (conn) await conn.rollback();
+    res.status(400).json({ error: e.message });
+  } finally {
+    if (conn) conn.release(); // Trả kết nối
   }
 });
 
 // 4.2. BÁN SÁCH
 app.post("/api/ban-sach", async (req, res) => {
   const { maKhachHang, danhSachSachBan, soTienTra } = req.body;
-  const conn = db.promise();
-
+  let conn;
   try {
+    conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
-    // Lấy quy định
     const [thamSo] = await conn.query("SELECT * FROM THAM_SO");
     const QD = {};
     thamSo.forEach((r) => (QD[r.MaThamSo] = r.GiaTri));
-    const tiLeGia = QD["TiLeGiaBan"] / 100;
+    const tiLe = QD["TiLeGiaBan"] / 100;
 
     let tongTien = 0;
-
-    // Duyệt tính tiền và kiểm tra tồn kho
     for (let item of danhSachSachBan) {
-      // Tính lại giá bán server-side để bảo mật
       const [sachDB] = await conn.query(
         "SELECT SoLuongTon, DonGiaNhapGanNhat FROM SACH WHERE MaSach = ?",
         [item.maSach]
       );
-      const giaBan = sachDB[0].DonGiaNhapGanNhat * tiLeGia;
+      const giaBan = sachDB[0].DonGiaNhapGanNhat * tiLe;
       item.donGiaBan = giaBan;
       item.thanhTien = item.soLuong * giaBan;
       tongTien += item.thanhTien;
 
-      // Kiểm tra tồn kho tối thiểu sau bán (QĐ2)
-      if (sachDB[0].SoLuongTon - item.soLuong < QD["MinTonSauBan"]) {
-        throw new Error(
-          `Sách mã ${item.maSach} vi phạm quy định tồn tối thiểu sau khi bán!`
-        );
-      }
+      if (sachDB[0].SoLuongTon - item.soLuong < QD["MinTonSauBan"])
+        throw new Error(`Sách ${item.maSach} vi phạm tồn tối thiểu!`);
     }
 
     const conLai = tongTien - soTienTra;
-
-    // Kiểm tra Nợ (QĐ2)
     const [khach] = await conn.query(
       "SELECT TienNoHienTai FROM KHACH_HANG WHERE MaKhachHang = ?",
       [maKhachHang]
     );
-    if (khach[0].TienNoHienTai + conLai > QD["MaxNo"]) {
-      throw new Error(
-        `Khách nợ quá hạn mức cho phép (${QD["MaxNo"].toLocaleString()}đ)!`
-      );
-    }
+    if (khach[0].TienNoHienTai + conLai > QD["MaxNo"])
+      throw new Error("Khách nợ quá hạn mức!");
 
-    // Lưu Hóa đơn
     const [hd] = await conn.query(
       "INSERT INTO HOA_DON (MaKhachHang, TongTien, SoTienTra, ConLai) VALUES (?, ?, ?, ?)",
       [maKhachHang, tongTien, soTienTra, conLai]
     );
-    const maHoaDon = hd.insertId;
 
-    // Lưu chi tiết & Trừ kho
     for (let item of danhSachSachBan) {
       await conn.query(
         "INSERT INTO CT_HOA_DON (MaHoaDon, MaSach, SoLuong, DonGiaBan, ThanhTien) VALUES (?, ?, ?, ?, ?)",
-        [maHoaDon, item.maSach, item.soLuong, item.donGiaBan, item.thanhTien]
+        [hd.insertId, item.maSach, item.soLuong, item.donGiaBan, item.thanhTien]
       );
-
       await conn.query(
         "UPDATE SACH SET SoLuongTon = SoLuongTon - ? WHERE MaSach = ?",
         [item.soLuong, item.maSach]
       );
     }
 
-    // Cộng nợ
-    if (conLai > 0) {
+    if (conLai > 0)
       await conn.query(
         "UPDATE KHACH_HANG SET TienNoHienTai = TienNoHienTai + ? WHERE MaKhachHang = ?",
         [conLai, maKhachHang]
       );
-    }
 
     await conn.commit();
-    res.json({ message: "Bán sách thành công!" });
-  } catch (error) {
-    await conn.rollback();
-    res.status(400).json({ error: error.message });
+    res.json({ message: "Bán thành công" });
+  } catch (e) {
+    if (conn) await conn.rollback();
+    res.status(400).json({ error: e.message });
+  } finally {
+    if (conn) conn.release();
   }
 });
 
 // 4.3. THU TIỀN
 app.post("/api/thu-tien", async (req, res) => {
   const { maKhachHang, soTienThu } = req.body;
-  const conn = db.promise();
-
+  let conn;
   try {
+    conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
     const [qd] = await conn.query(
@@ -402,10 +367,8 @@ app.post("/api/thu-tien", async (req, res) => {
       [maKhachHang]
     );
 
-    // Kiểm tra quy định thu (QĐ4)
-    if (qd[0].GiaTri === 1 && soTienThu > kh[0].TienNoHienTai) {
-      throw new Error("Số tiền thu không được vượt quá số tiền khách đang nợ!");
-    }
+    if (qd[0].GiaTri === 1 && soTienThu > kh[0].TienNoHienTai)
+      throw new Error("Tiền thu > Nợ!");
 
     await conn.query(
       "INSERT INTO PHIEU_THU_TIEN (MaKhachHang, SoTienThu) VALUES (?, ?)",
@@ -417,14 +380,16 @@ app.post("/api/thu-tien", async (req, res) => {
     );
 
     await conn.commit();
-    res.json({ message: "Thu tiền thành công!" });
-  } catch (error) {
-    await conn.rollback();
-    res.status(400).json({ error: error.message });
+    res.json({ message: "Thu thành công" });
+  } catch (e) {
+    if (conn) await conn.rollback();
+    res.status(400).json({ error: e.message });
+  } finally {
+    if (conn) conn.release();
   }
 });
 
-// --- 5. API LỊCH SỬ & CHI TIẾT ---
+// --- 5. LỊCH SỬ & BÁO CÁO ---
 app.get("/api/lich-su/hoa-don", async (req, res) => {
   try {
     res.json(
@@ -479,22 +444,11 @@ app.get("/api/chi-tiet-phieu-nhap/:id", async (req, res) => {
   }
 });
 
-// --- 6. API BÁO CÁO (ĐÃ SỬA LỖI 500) ---
-
-// Báo cáo Tồn (Dùng Subquery an toàn hơn)
 app.get("/api/bao-cao/ton", async (req, res) => {
   const { thang, nam } = req.query;
-  // Cách viết này tránh lỗi Group By và chạy ổn định trên mọi loại SQL
-  const sql = `
-        SELECT 
-            s.MaSach, s.TenSach, s.SoLuongTon as TonCuoi,
-            IFNULL((SELECT SUM(SoLuongNhap) FROM CT_PHIEU_NHAP ct JOIN PHIEU_NHAP pn ON ct.MaPhieuNhap = pn.MaPhieuNhap WHERE ct.MaSach = s.MaSach AND MONTH(pn.NgayNhap) = ? AND YEAR(pn.NgayNhap) = ?), 0) as PhatSinhNhap,
-            IFNULL((SELECT SUM(SoLuong) FROM CT_HOA_DON ct JOIN HOA_DON hd ON ct.MaHoaDon = hd.MaHoaDon WHERE ct.MaSach = s.MaSach AND MONTH(hd.NgayLap) = ? AND YEAR(hd.NgayLap) = ?), 0) as PhatSinhXuat
-        FROM SACH s
-    `;
+  const sql = `SELECT s.MaSach, s.TenSach, s.SoLuongTon as TonCuoi, IFNULL((SELECT SUM(SoLuongNhap) FROM CT_PHIEU_NHAP ct JOIN PHIEU_NHAP pn ON ct.MaPhieuNhap = pn.MaPhieuNhap WHERE ct.MaSach = s.MaSach AND MONTH(pn.NgayNhap) = ? AND YEAR(pn.NgayNhap) = ?), 0) as PhatSinhNhap, IFNULL((SELECT SUM(SoLuong) FROM CT_HOA_DON ct JOIN HOA_DON hd ON ct.MaHoaDon = hd.MaHoaDon WHERE ct.MaSach = s.MaSach AND MONTH(hd.NgayLap) = ? AND YEAR(hd.NgayLap) = ?), 0) as PhatSinhXuat FROM SACH s`;
   try {
     const d = await query(sql, [thang, nam, thang, nam]);
-    // Tính ngược Tồn Đầu = Cuối - Nhập + Xuất
     res.json(
       d.map((i) => ({
         ...i,
@@ -502,21 +456,13 @@ app.get("/api/bao-cao/ton", async (req, res) => {
       }))
     );
   } catch (e) {
-    console.error(e); // In lỗi ra terminal server để debug
-    res.status(500).json({ error: "Lỗi tính toán báo cáo tồn: " + e.message });
+    res.status(500).json(e);
   }
 });
 
-// Báo cáo Công Nợ (Tương tự)
 app.get("/api/bao-cao/cong-no", async (req, res) => {
   const { thang, nam } = req.query;
-  const sql = `
-        SELECT 
-            kh.MaKhachHang, kh.HoTen, kh.TienNoHienTai as NoCuoi,
-            IFNULL((SELECT SUM(ConLai) FROM HOA_DON hd WHERE hd.MaKhachHang = kh.MaKhachHang AND hd.ConLai > 0 AND MONTH(hd.NgayLap) = ? AND YEAR(hd.NgayLap) = ?), 0) as PhatSinhTang,
-            IFNULL((SELECT SUM(SoTienThu) FROM PHIEU_THU_TIEN pt WHERE pt.MaKhachHang = kh.MaKhachHang AND MONTH(pt.NgayThu) = ? AND YEAR(pt.NgayThu) = ?), 0) as PhatSinhGiam
-        FROM KHACH_HANG kh
-    `;
+  const sql = `SELECT kh.MaKhachHang, kh.HoTen, kh.TienNoHienTai as NoCuoi, IFNULL((SELECT SUM(ConLai) FROM HOA_DON hd WHERE hd.MaKhachHang = kh.MaKhachHang AND hd.ConLai > 0 AND MONTH(hd.NgayLap) = ? AND YEAR(hd.NgayLap) = ?), 0) as PhatSinhTang, IFNULL((SELECT SUM(SoTienThu) FROM PHIEU_THU_TIEN pt WHERE pt.MaKhachHang = kh.MaKhachHang AND MONTH(pt.NgayThu) = ? AND YEAR(pt.NgayThu) = ?), 0) as PhatSinhGiam FROM KHACH_HANG kh`;
   try {
     const d = await query(sql, [thang, nam, thang, nam]);
     res.json(
@@ -526,7 +472,7 @@ app.get("/api/bao-cao/cong-no", async (req, res) => {
       }))
     );
   } catch (e) {
-    res.status(500).json({ error: "Lỗi báo cáo công nợ: " + e.message });
+    res.status(500).json(e);
   }
 });
 

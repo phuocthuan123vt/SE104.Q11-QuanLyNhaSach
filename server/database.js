@@ -1,25 +1,33 @@
 // server/database.js
-const mysql = require('mysql2');
+const mysql = require("mysql2");
 
-const connection = mysql.createConnection({
-    host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com', // <-- Thay bằng Host của TiDB
-    port: 4000,                                         // <-- Thay bằng Port của TiDB
-    user: '2RfMS99VErzNfyG.root',                                // <-- Thay bằng User của TiDB
-    password: 'njAb1cZjWXfWrzGZ',                      // <-- Thay bằng Password của TiDB
-    database: 'QuanLyNhaSach',                          // Tên DB em muốn đặt
-    ssl: {
-        minVersion: 'TLSv1.2',
-        rejectUnauthorized: true
-    },
-    multipleStatements: true
+// Sử dụng createPool thay vì createConnection
+const pool = mysql.createPool({
+  host: "gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
+  port: 4000,
+  user: "2RfMS99VErzNfyG.root", // <--- Thay User của em
+  password: "njAb1cZjWXfWrzGZ", // <--- Thay Pass của em
+  database: "QuanLyNhaSach",
+  ssl: {
+    minVersion: "TLSv1.2",
+    rejectUnauthorized: true,
+  },
+  waitForConnections: true,
+  connectionLimit: 10, // Cho phép tối đa 10 kết nối cùng lúc
+  queueLimit: 0,
+  enableKeepAlive: true, // Giữ kết nối sống
+  keepAliveInitialDelay: 0,
+  multipleStatements: true,
 });
 
-connection.connect(error => {
-    if (error) {
-        console.error('❌ LỖI KẾT NỐI CLOUD DB:', error);
-        return;
-    }
-    console.log('☁️ ĐÃ KẾT NỐI DATABASE TRÊN MÂY THÀNH CÔNG!');
+// Kiểm tra kết nối ban đầu
+pool.getConnection((err, connection) => {
+  if (err) {
+    console.error("❌ LỖI KẾT NỐI POOL:", err.message);
+  } else {
+    console.log("☁️ ĐÃ KẾT NỐI DATABASE (POOL) THÀNH CÔNG!");
+    connection.release(); // Trả kết nối về bể
+  }
 });
 
-module.exports = connection;
+module.exports = pool;
