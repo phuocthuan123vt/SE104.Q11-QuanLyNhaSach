@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const db = require("./database"); // Lúc này db là một Pool
+const db = require("./database");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -291,43 +291,93 @@ app.post("/api/ban-sach", async (req, res) => {
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
+    // 1. Lấy tham số quy định
     const [thamSo] = await conn.query("SELECT * FROM THAM_SO");
     const QD = {};
     thamSo.forEach((r) => (QD[r.MaThamSo] = r.GiaTri));
-    const tiLe = QD["TiLeGiaBan"] / 100;
+    const tiLeGia = QD["TiLeGiaBan"] / 100;
+    const isCheckThuTien = QD["KiemTraThuTien"] === 1;
 
-    let tongTien = 0;
+    // 2. Tính tổng tiền hóa đơn & Kiểm tra tồn kho
+    let tongTienHoaDon = 0;
     for (let item of danhSachSachBan) {
       const [sachDB] = await conn.query(
-        "SELECT SoLuongTon, DonGiaNhapGanNhat FROM SACH WHERE MaSach = ?",
+        "SELECT SoLuongTon, DonGiaNhapGanNhat, TenSach FROM SACH WHERE MaSach = ?",
         [item.maSach]
       );
-      const giaBan = sachDB[0].DonGiaNhapGanNhat * tiLe;
+      if (sachDB.length === 0)
+        throw new Error(`Sách ID ${item.maSach} không tồn tại`);
+
+      const giaBan = sachDB[0].DonGiaNhapGanNhat * tiLeGia;
       item.donGiaBan = giaBan;
       item.thanhTien = item.soLuong * giaBan;
-      tongTien += item.thanhTien;
+      tongTienHoaDon += item.thanhTien;
 
-      if (sachDB[0].SoLuongTon - item.soLuong < QD["MinTonSauBan"])
-        throw new Error(`Sách ${item.maSach} vi phạm tồn tối thiểu!`);
+      // Check QĐ2: Tồn tối thiểu sau bán
+      if (sachDB[0].SoLuongTon - item.soLuong < QD["MinTonSauBan"]) {
+        throw new Error(
+          `Sách "${sachDB[0].TenSach}" vi phạm quy định tồn tối thiểu (${QD["MinTonSauBan"]}) sau khi bán!`
+        );
+      }
     }
 
-    const conLai = tongTien - soTienTra;
+    // 3. Phân bổ tiền trả (Hóa đơn & Nợ cũ)
+    let tienTraChoHoaDon = 0;
+    let tienThuNoCu = 0; // Tiền dư ra để lập phiếu thu
+    let noPhatSinh = 0;
+
+    if (soTienTra >= tongTienHoaDon) {
+      // Khách trả đủ hoặc dư
+      tienTraChoHoaDon = tongTienHoaDon;
+      tienThuNoCu = soTienTra - tongTienHoaDon; // Phần dư
+      noPhatSinh = 0;
+    } else {
+      // Khách trả thiếu (Nợ thêm)
+      tienTraChoHoaDon = soTienTra;
+      tienThuNoCu = 0;
+      noPhatSinh = tongTienHoaDon - soTienTra;
+    }
+
+    // 4. Lấy thông tin khách hàng hiện tại
     const [khach] = await conn.query(
       "SELECT TienNoHienTai FROM KHACH_HANG WHERE MaKhachHang = ?",
       [maKhachHang]
     );
-    if (khach[0].TienNoHienTai + conLai > QD["MaxNo"])
-      throw new Error("Khách nợ quá hạn mức!");
+    const noHienTai = khach[0].TienNoHienTai;
 
+    // 5. Kiểm tra các Quy định về Tiền
+
+    // QĐ4: Nếu có thu nợ cũ (tiền dư), số tiền này không được vượt quá Nợ Hiện Tại
+    if (tienThuNoCu > 0 && isCheckThuTien && tienThuNoCu > noHienTai) {
+      throw new Error(
+        `Khách trả thừa ${tienThuNoCu.toLocaleString()}đ, nhưng nợ cũ chỉ có ${noHienTai.toLocaleString()}đ. Không thể thu quá số nợ!`
+      );
+    }
+
+    // QĐ2: Kiểm tra tổng nợ sau giao dịch (Nợ cũ - Thu nợ + Nợ mới)
+    const noSauGiaoDich = noHienTai - tienThuNoCu + noPhatSinh;
+    if (noSauGiaoDich > QD["MaxNo"]) {
+      throw new Error(
+        `Giao dịch khiến tổng nợ khách hàng (${noSauGiaoDich.toLocaleString()}đ) vượt quá hạn mức (${QD[
+          "MaxNo"
+        ].toLocaleString()}đ)!`
+      );
+    }
+
+    // --- BẮT ĐẦU GHI DỮ LIỆU ---
+
+    // B1: Lưu Hóa Đơn
     const [hd] = await conn.query(
       "INSERT INTO HOA_DON (MaKhachHang, TongTien, SoTienTra, ConLai) VALUES (?, ?, ?, ?)",
-      [maKhachHang, tongTien, soTienTra, conLai]
+      [maKhachHang, tongTienHoaDon, tienTraChoHoaDon, noPhatSinh]
     );
+    const maHoaDon = hd.insertId;
 
+    // B2: Lưu Chi tiết Hóa đơn & Trừ kho
     for (let item of danhSachSachBan) {
       await conn.query(
         "INSERT INTO CT_HOA_DON (MaHoaDon, MaSach, SoLuong, DonGiaBan, ThanhTien) VALUES (?, ?, ?, ?, ?)",
-        [hd.insertId, item.maSach, item.soLuong, item.donGiaBan, item.thanhTien]
+        [maHoaDon, item.maSach, item.soLuong, item.donGiaBan, item.thanhTien]
       );
       await conn.query(
         "UPDATE SACH SET SoLuongTon = SoLuongTon - ? WHERE MaSach = ?",
@@ -335,17 +385,35 @@ app.post("/api/ban-sach", async (req, res) => {
       );
     }
 
-    if (conLai > 0)
+    // B3: Tự động Lập Phiếu Thu (Nếu có tiền dư)
+    if (tienThuNoCu > 0) {
+      await conn.query(
+        "INSERT INTO PHIEU_THU_TIEN (MaKhachHang, SoTienThu) VALUES (?, ?)",
+        [maKhachHang, tienThuNoCu]
+      );
+    }
+
+    // B4: Cập nhật Nợ Khách Hàng (Công thức chuẩn: Nợ Mới = Nợ Cũ - Thu Nợ Dư + Nợ Phát Sinh Hóa Đơn)
+    // (Hoặc đơn giản là: Nợ Mới = Nợ Cũ + Tổng Tiền Hóa Đơn - Tổng Tiền Khách Đưa)
+    if (tienThuNoCu > 0 || noPhatSinh > 0) {
+      const thayDoiNo = noPhatSinh - tienThuNoCu; // Có thể âm (nếu trả nợ) hoặc dương (nếu nợ thêm)
       await conn.query(
         "UPDATE KHACH_HANG SET TienNoHienTai = TienNoHienTai + ? WHERE MaKhachHang = ?",
-        [conLai, maKhachHang]
+        [thayDoiNo, maKhachHang]
       );
+    }
 
     await conn.commit();
-    res.json({ message: "Bán thành công" });
-  } catch (e) {
+
+    // Trả về message chi tiết để hiển thị
+    let msg = "Bán hàng thành công!";
+    if (tienThuNoCu > 0)
+      msg += ` Đã tự động lập phiếu thu nợ ${tienThuNoCu.toLocaleString()}đ.`;
+
+    res.json({ message: msg });
+  } catch (error) {
     if (conn) await conn.rollback();
-    res.status(400).json({ error: e.message });
+    res.status(400).json({ error: error.message });
   } finally {
     if (conn) conn.release();
   }
