@@ -98,7 +98,6 @@ function App() {
   const [catForm] = Form.useForm();
   const [isUserModal, setIsUserModal] = useState(false);
   const [userForm] = Form.useForm();
-
   const [editingItem, setEditingItem] = useState(null);
 
   // MULTI-ROW INPUT
@@ -108,6 +107,7 @@ function App() {
   const [tempSaleForm] = Form.useForm();
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState(0);
+  const [selectedBookId, setSelectedBookId] = useState(null);
 
   // REPORT & RULES
   const [reportData, setReportData] = useState([]);
@@ -119,9 +119,6 @@ function App() {
   const [ruleForm] = Form.useForm();
   const [printContent, setPrintContent] = useState(null);
 
-  // STATE ĐỂ ĐIỀU KHIỂN LOGIC SELECT SÁCH
-  const [selectedBookId, setSelectedBookId] = useState(null);
-
   // HELPERS
   const handleError = (e, action) => {
     console.error(e);
@@ -129,16 +126,11 @@ function App() {
       `${action} thất bại: ${e.response?.data?.error || e.message}`
     );
   };
-
-  // [Yêu cầu 11] Format số: có dấu phẩy, không số thập phân
   const formatMoney = (amount) => {
     if (amount === undefined || amount === null) return "0 ₫";
     return parseInt(amount).toLocaleString("vi-VN") + " ₫";
   };
-  const formatNumber = (num) => {
-    if (num === undefined || num === null) return "0";
-    return parseInt(num).toLocaleString("vi-VN");
-  };
+  const formatNumber = (num) => parseInt(num || 0).toLocaleString("vi-VN");
 
   // FETCHING
   const fetchAll = () => {
@@ -185,7 +177,6 @@ function App() {
       setUsers(r.data);
     } catch (e) {}
   };
-
   const fetchReport = async () => {
     setLoading(true);
     const url =
@@ -201,11 +192,9 @@ function App() {
     setLoading(false);
   };
 
-  // [Yêu cầu 14] Tự động lấy báo cáo khi đổi loại
   useEffect(() => {
     if (token) fetchReport();
   }, [reportType, month, year]);
-
   const fetchHistory = async () => {
     try {
       const [r1, r2, r3] = await Promise.all([
@@ -232,7 +221,6 @@ function App() {
       handleError(e, "Xem chi tiết");
     }
   };
-
   useEffect(() => {
     fetchAll();
   }, [token]);
@@ -300,25 +288,18 @@ function App() {
           },
         ];
   };
-
-  // --- GET RULES VALUES ---
   const getRule = (key, defaultVal) =>
     rules.find((r) => r.MaThamSo === key)?.GiaTri || defaultVal;
 
-  // --- LOGIC NHẬP HÀNG ---
+  // HANDLERS
   const addImportItem = (v) => {
     const b = books.find((i) => i.MaSach === v.maSach);
     const minNhap = getRule("MinNhap", 150);
-    const minTonTruocNhap = getRule("MinTonTruocNhap", 300);
-
-    // [Yêu cầu 4] Validate Client-side
+    const minTon = getRule("MinTonTruocNhap", 300);
     if (v.soLuong < minNhap)
       return message.error(`Số lượng nhập phải >= ${minNhap}`);
-    if (b.SoLuongTon > minTonTruocNhap)
-      return message.error(
-        `Sách này tồn kho (${b.SoLuongTon}) > ${minTonTruocNhap}, không được nhập!`
-      );
-
+    if (b.SoLuongTon > minTon)
+      return message.error(`Tồn kho > ${minTon}, không được nhập!`);
     if (importItems.find((i) => i.maSach === v.maSach))
       return message.warning("Đã có trong danh sách!");
     setImportItems([
@@ -343,21 +324,13 @@ function App() {
       handleError(e, "Nhập sách");
     }
   };
-
-  // --- LOGIC BÁN HÀNG ---
   const addSaleItem = (v) => {
     const b = books.find((i) => i.MaSach === v.maSach);
-    const minTonSauBan = getRule("MinTonSauBan", 20);
-
-    if (b.SoLuongTon - v.soLuong < minTonSauBan)
-      return message.error(
-        `Sau khi bán tồn kho sẽ < ${minTonSauBan}. Không được bán!`
-      );
-
+    if (b.SoLuongTon - v.soLuong < getRule("MinTonSauBan", 20))
+      return message.error(`Tồn kho không đủ (Quy định tối thiểu)!`);
     if (saleItems.find((i) => i.maSach === v.maSach))
       return message.warning("Đã có trong giỏ hàng");
-    const tiLe = getRule("TiLeGiaBan", 105) / 100;
-    const gia = b.DonGiaNhapGanNhat * tiLe;
+    const gia = b.DonGiaNhapGanNhat * (getRule("TiLeGiaBan", 105) / 100);
     setSaleItems([
       ...saleItems,
       {
@@ -375,24 +348,14 @@ function App() {
   const submitSale = async () => {
     if (!selectedCustomer || saleItems.length === 0)
       return message.error("Thiếu thông tin");
-    const total = saleItems.reduce((s, i) => s + i.thanhTien, 0);
-
-    // [Yêu cầu 10] Validate Tiền trả
-    const customer = customers.find((c) => c.MaKhachHang === selectedCustomer);
-    const currentDebt = customer?.TienNoHienTai || 0;
-    if (paymentAmount > total + currentDebt) {
-      return message.error(
-        "Khách trả thừa tiền vượt quá tổng nợ! (Hệ thống không hỗ trợ trả lại tiền mặt)"
-      );
-    }
-
+    // Bỏ check tiền trả dư ở đây để Backend tự xử lý (tự tạo phiếu thu)
     try {
       await axios.post(`${API_URL}/ban-sach`, {
         maKhachHang: selectedCustomer,
         soTienTra: paymentAmount,
         danhSachSachBan: saleItems,
       });
-      message.success("Thành công! Vào Lịch Sử để In Hóa Đơn");
+      message.success("Giao dịch thành công! (Kiểm tra lịch sử)");
       setIsSellModalOpen(false);
       setSaleItems([]);
       setSelectedCustomer(null);
@@ -405,7 +368,7 @@ function App() {
     }
   };
 
-  // --- CRUD ---
+  // CRUD
   const handleLogin = async (v) => {
     try {
       const r = await axios.post(`${API_URL}/login`, v);
@@ -422,7 +385,6 @@ function App() {
     sessionStorage.clear();
     setToken(null);
   };
-
   const saveCustomer = async (v) => {
     try {
       if (editingItem)
@@ -444,7 +406,6 @@ function App() {
       handleError(e, "Xóa khách");
     }
   };
-
   const saveCategory = async (v) => {
     try {
       if (editingItem)
@@ -466,7 +427,6 @@ function App() {
       handleError(e, "Xóa thể loại");
     }
   };
-
   const saveBook = async (v) => {
     try {
       if (editingItem)
@@ -507,7 +467,6 @@ function App() {
       handleError(e, "Xóa user");
     }
   };
-
   const handleThu = async (v) => {
     try {
       await axios.post(`${API_URL}/thu-tien`, v);
@@ -593,14 +552,18 @@ function App() {
                 <Title level={2} style={{ color: "#0096FF", fontWeight: 800 }}>
                   ĐĂNG NHẬP
                 </Title>
+                <Text type="secondary">Hệ thống quản lý nội bộ</Text>
               </div>
               <Form layout="vertical" size="large" onFinish={handleLogin}>
                 <Form.Item name="username" rules={[{ required: true }]}>
-                  <Input prefix={<UserOutlined />} placeholder="Tài khoản" />
+                  <Input
+                    prefix={<UserOutlined style={{ color: DORA_BLUE }} />}
+                    placeholder="Tài khoản"
+                  />
                 </Form.Item>
                 <Form.Item name="password" rules={[{ required: true }]}>
                   <Input.Password
-                    prefix={<LockOutlined />}
+                    prefix={<LockOutlined style={{ color: DORA_BLUE }} />}
                     placeholder="Mật khẩu"
                   />
                 </Form.Item>
@@ -644,7 +607,7 @@ function App() {
             <br />
             <Row>
               <Col span={12} style={{ textAlign: "center" }}>
-                Người lập phiếu
+                Người lập
                 <br />
                 <br />
                 {currentUser.hoTen}
@@ -656,7 +619,6 @@ function App() {
           </div>
         )}
       </div>
-
       <Header
         style={{
           display: "flex",
@@ -679,6 +641,7 @@ function App() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              border: `3px solid ${DORA_RED}`,
             }}
           >
             <img src={IMG_LOGO_BELL} style={{ width: 25 }} />
@@ -699,7 +662,7 @@ function App() {
             items: [
               {
                 key: "1",
-                label: "Đăng Xuất",
+                label: <span style={{ fontWeight: "bold" }}>Đăng Xuất</span>,
                 icon: <LogoutOutlined />,
                 onClick: handleLogout,
               },
@@ -728,7 +691,6 @@ function App() {
           </div>
         </Dropdown>
       </Header>
-
       <Content style={{ padding: "30px 50px" }}>
         <Card
           style={{
@@ -743,8 +705,8 @@ function App() {
             defaultActiveKey="1"
             type="card"
             size="large"
-            onChange={(key) => {
-              if (key === "3") fetchReport();
+            onChange={(k) => {
+              if (k === "3") fetchReport();
             }}
             items={[
               {
@@ -759,7 +721,7 @@ function App() {
                     <Row gutter={16} style={{ marginBottom: 20 }}>
                       <Col flex="auto">
                         <Input.Search
-                          placeholder="Tìm bảo bối... à nhầm, tìm sách..."
+                          placeholder="Tìm bảo bối..."
                           allowClear
                           size="large"
                           style={{ borderRadius: 20 }}
@@ -885,7 +847,7 @@ function App() {
                       }}
                     >
                       <Title level={4} style={{ color: DORA_BLUE }}>
-                        <EyeOutlined /> Lịch Sử Giao Dịch
+                        <EyeOutlined /> Lịch Sử
                       </Title>
                       <Tabs
                         items={[
@@ -898,7 +860,11 @@ function App() {
                                 rowKey="MaHoaDon"
                                 pagination={{ pageSize: 5 }}
                                 columns={[
-                                  { title: "ID", dataIndex: "MaHoaDon" },
+                                  {
+                                    title: "ID",
+                                    dataIndex: "MaHoaDon",
+                                    width: 60,
+                                  },
                                   {
                                     title: "Ngày",
                                     dataIndex: "NgayLap",
@@ -941,7 +907,11 @@ function App() {
                                 rowKey="MaPhieuNhap"
                                 pagination={{ pageSize: 5 }}
                                 columns={[
-                                  { title: "ID", dataIndex: "MaPhieuNhap" },
+                                  {
+                                    title: "ID",
+                                    dataIndex: "MaPhieuNhap",
+                                    width: 60,
+                                  },
                                   {
                                     title: "Ngày",
                                     dataIndex: "NgayNhap",
@@ -986,7 +956,11 @@ function App() {
                                 rowKey="MaPhieuThu"
                                 pagination={{ pageSize: 5 }}
                                 columns={[
-                                  { title: "ID", dataIndex: "MaPhieuThu" },
+                                  {
+                                    title: "ID",
+                                    dataIndex: "MaPhieuThu",
+                                    width: 60,
+                                  },
                                   {
                                     title: "Ngày",
                                     dataIndex: "NgayThu",
@@ -1480,7 +1454,7 @@ function App() {
                       <Row justify="center">
                         <Col span={12}>
                           <Card
-                            title="Tham Số Quy Định"
+                            title="Tham Số"
                             bordered={false}
                             style={{
                               borderRadius: 20,
@@ -1554,7 +1528,6 @@ function App() {
           }}
         >
           <Form form={tempImportForm} layout="inline" onFinish={addImportItem}>
-            {/* [Yêu cầu 1, 5] Dropdown Sách Custom */}
             <Form.Item
               name="maSach"
               rules={[{ required: true }]}
@@ -1585,8 +1558,8 @@ function App() {
                 )}
               >
                 {books.map((b) => {
-                  const minTon = getRule("MinTonTruocNhap", 300);
-                  const isViPham = b.SoLuongTon > minTon;
+                  const isViPham =
+                    b.SoLuongTon > getRule("MinTonTruocNhap", 300);
                   return (
                     <Option key={b.MaSach} value={b.MaSach} disabled={false}>
                       <div
@@ -1602,7 +1575,6 @@ function App() {
                   );
                 })}
               </Select>
-              {/* [Yêu cầu 2] Thông báo lỗi nhỏ */}
               {selectedBookId &&
                 books.find((b) => b.MaSach === selectedBookId)?.SoLuongTon >
                   getRule("MinTonTruocNhap", 300) && (
@@ -1703,7 +1675,6 @@ function App() {
         cancelText="Hủy"
       >
         <div style={{ marginBottom: 15 }}>
-          {/* [Yêu cầu 6] Dropdown Khách Hàng Custom */}
           <Select
             style={{ width: "100%" }}
             placeholder="Chọn Khách Hàng (Gõ tên để tìm...)"
@@ -1846,7 +1817,7 @@ function App() {
         </div>
       </Modal>
 
-      {/* MODAL KHÁC (GIỮ NGUYÊN) */}
+      {/* MODAL KHÁC */}
       <Modal
         title="Thu Tiền Nợ"
         open={isPayModalOpen}
@@ -1862,7 +1833,7 @@ function App() {
             <Select>
               {customers.map((c) => (
                 <Option key={c.MaKhachHang} value={c.MaKhachHang}>
-                  {c.HoTen} (Nợ: {c.TienNoHienTai})
+                  {c.HoTen} (Nợ: {formatMoney(c.TienNoHienTai)})
                 </Option>
               ))}
             </Select>
@@ -2002,7 +1973,7 @@ function App() {
         </Form>
       </Modal>
       <Modal
-        title="Chi Tiết"
+        title="Chi Tiết Giao Dịch"
         open={isDetailModal}
         onCancel={() => setIsDetailModal(false)}
         footer={
@@ -2040,7 +2011,7 @@ function App() {
           summary={(pageData) => (
             <Table.Summary.Row>
               <Table.Summary.Cell index={0} colSpan={3} align="right">
-                <b>Tổng:</b>
+                <b>Tổng Cộng:</b>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={1}>
                 <b>
