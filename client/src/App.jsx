@@ -50,16 +50,13 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { Header, Content, Footer } = Layout;
 
-// --- CẤU HÌNH ĐƯỜNG DẪN API (CHỈ CẦN SỬA 1 DÒNG NÀY) ---
-// const API_URL = "http://localhost:5000/api"; // Dùng dòng này nếu chạy Local
-const API_URL = "https://be-quanlynhasach.onrender.com/api"; // Dùng dòng này nếu chạy Online
+// CẤU HÌNH API
+const API_URL = "https://be-quanlynhasach.onrender.com/api";
 
-// --- ẢNH ---
+// ẢNH & MÀU SẮC
 const IMG_LOGIN_DORA = "/images/doraemon.png";
 const IMG_LOGO_BELL = "/images/logo.png";
 const IMG_AVATAR_DEFAULT = "/images/avatar.png";
-
-// MÀU SẮC
 const DORA_BLUE = "#0096FF";
 const DORA_RED = "#FF4D4F";
 const DORA_YELLOW = "#FFC53D";
@@ -71,14 +68,14 @@ function App() {
   );
   const isAdmin = currentUser?.quyen === 1;
 
-  // DATA
+  // DATA STATES
   const [books, setBooks] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // HISTORY
+  // HISTORY & DETAIL
   const [historyInvoices, setHistoryInvoices] = useState([]);
   const [historyImports, setHistoryImports] = useState([]);
   const [historyReceipts, setHistoryReceipts] = useState([]);
@@ -86,7 +83,7 @@ function App() {
   const [isDetailModal, setIsDetailModal] = useState(false);
   const [detailType, setDetailType] = useState("");
 
-  // MODALS
+  // MODAL STATES
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
@@ -101,9 +98,10 @@ function App() {
   const [catForm] = Form.useForm();
   const [isUserModal, setIsUserModal] = useState(false);
   const [userForm] = Form.useForm();
+
   const [editingItem, setEditingItem] = useState(null);
 
-  // MULTI-ROW
+  // MULTI-ROW INPUT
   const [importItems, setImportItems] = useState([]);
   const [tempImportForm] = Form.useForm();
   const [saleItems, setSaleItems] = useState([]);
@@ -111,7 +109,7 @@ function App() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState(0);
 
-  // REPORT & PRINT
+  // REPORT & RULES
   const [reportData, setReportData] = useState([]);
   const [reportType, setReportType] = useState("ton");
   const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -121,6 +119,9 @@ function App() {
   const [ruleForm] = Form.useForm();
   const [printContent, setPrintContent] = useState(null);
 
+  // STATE ĐỂ ĐIỀU KHIỂN LOGIC SELECT SÁCH
+  const [selectedBookId, setSelectedBookId] = useState(null);
+
   // HELPERS
   const handleError = (e, action) => {
     console.error(e);
@@ -128,8 +129,16 @@ function App() {
       `${action} thất bại: ${e.response?.data?.error || e.message}`
     );
   };
-  const formatMoney = (amount) =>
-    amount?.toLocaleString("vi-VN", { style: "currency", currency: "VND" });
+
+  // [Yêu cầu 11] Format số: có dấu phẩy, không số thập phân
+  const formatMoney = (amount) => {
+    if (amount === undefined || amount === null) return "0 ₫";
+    return parseInt(amount).toLocaleString("vi-VN") + " ₫";
+  };
+  const formatNumber = (num) => {
+    if (num === undefined || num === null) return "0";
+    return parseInt(num).toLocaleString("vi-VN");
+  };
 
   // FETCHING
   const fetchAll = () => {
@@ -141,8 +150,6 @@ function App() {
     fetchRules();
     if (isAdmin) fetchUsers();
   };
-
-  // --- SỬA HẾT CÁC ĐƯỜNG DẪN DƯỚI ĐÂY DÙNG BIẾN API_URL ---
   const fetchBooks = async () => {
     setLoading(true);
     try {
@@ -188,12 +195,16 @@ function App() {
     try {
       const r = await axios.get(`${API_URL}/bao-cao/${url}`);
       setReportData(r.data);
-      message.success("Tải xong báo cáo");
     } catch (e) {
       handleError(e, "Tải báo cáo");
     }
     setLoading(false);
   };
+
+  // [Yêu cầu 14] Tự động lấy báo cáo khi đổi loại
+  useEffect(() => {
+    if (token) fetchReport();
+  }, [reportType, month, year]);
 
   const fetchHistory = async () => {
     try {
@@ -207,7 +218,6 @@ function App() {
       setHistoryReceipts(r3.data);
     } catch (e) {}
   };
-
   const fetchDetail = async (id, type) => {
     try {
       const u =
@@ -235,13 +245,10 @@ function App() {
       date: new Date().toLocaleDateString("vi-VN"),
       savedReportType: reportType,
     });
-    setTimeout(() => {
-      window.print();
-    }, 500);
+    setTimeout(() => window.print(), 500);
   };
-
   const getPrintColumns = () => {
-    if (printContent?.type === "invoice") {
+    if (printContent?.type === "invoice")
       return [
         { title: "Sách", dataIndex: "TenSach" },
         {
@@ -251,63 +258,75 @@ function App() {
         {
           title: "Đơn Giá",
           dataIndex: detailType === "hoadon" ? "DonGiaBan" : "DonGiaNhap",
-          render: (v) => v?.toLocaleString(),
+          render: (v) => formatNumber(v),
         },
         {
           title: "Thành Tiền",
           dataIndex: "ThanhTien",
-          render: (v) => v?.toLocaleString(),
+          render: (v) => formatNumber(v),
         },
       ];
-    } else {
-      if (printContent?.savedReportType === "ton") {
-        return [
+    return printContent?.savedReportType === "ton"
+      ? [
           { title: "STT", render: (t, r, i) => i + 1, width: 50 },
           { title: "Sách", dataIndex: "TenSach" },
           { title: "Tồn Đầu", dataIndex: "TonDau" },
           { title: "Nhập", dataIndex: "PhatSinhNhap" },
           { title: "Xuất", dataIndex: "PhatSinhXuat" },
           { title: "Tồn Cuối", dataIndex: "TonCuoi" },
-        ];
-      } else {
-        return [
+        ]
+      : [
           { title: "STT", render: (t, r, i) => i + 1, width: 50 },
           { title: "Khách Hàng", dataIndex: "HoTen" },
           {
             title: "Nợ Đầu",
             dataIndex: "NoDau",
-            render: (v) => v?.toLocaleString(),
+            render: (v) => formatNumber(v),
           },
           {
             title: "Tăng",
             dataIndex: "PhatSinhTang",
-            render: (v) => v?.toLocaleString(),
+            render: (v) => formatNumber(v),
           },
           {
             title: "Giảm",
             dataIndex: "PhatSinhGiam",
-            render: (v) => v?.toLocaleString(),
+            render: (v) => formatNumber(v),
           },
           {
             title: "Nợ Cuối",
             dataIndex: "NoCuoi",
-            render: (v) => v?.toLocaleString(),
+            render: (v) => formatNumber(v),
           },
         ];
-      }
-    }
   };
 
-  // HANDLERS
+  // --- GET RULES VALUES ---
+  const getRule = (key, defaultVal) =>
+    rules.find((r) => r.MaThamSo === key)?.GiaTri || defaultVal;
+
+  // --- LOGIC NHẬP HÀNG ---
   const addImportItem = (v) => {
     const b = books.find((i) => i.MaSach === v.maSach);
+    const minNhap = getRule("MinNhap", 150);
+    const minTonTruocNhap = getRule("MinTonTruocNhap", 300);
+
+    // [Yêu cầu 4] Validate Client-side
+    if (v.soLuong < minNhap)
+      return message.error(`Số lượng nhập phải >= ${minNhap}`);
+    if (b.SoLuongTon > minTonTruocNhap)
+      return message.error(
+        `Sách này tồn kho (${b.SoLuongTon}) > ${minTonTruocNhap}, không được nhập!`
+      );
+
     if (importItems.find((i) => i.maSach === v.maSach))
-      return message.warning("Đã có!");
+      return message.warning("Đã có trong danh sách!");
     setImportItems([
       ...importItems,
       { ...v, tenSach: b.TenSach, thanhTien: v.soLuong * v.donGia },
     ]);
     tempImportForm.resetFields();
+    setSelectedBookId(null);
   };
   const submitImport = async () => {
     if (importItems.length === 0) return message.error("Trống");
@@ -324,12 +343,20 @@ function App() {
       handleError(e, "Nhập sách");
     }
   };
+
+  // --- LOGIC BÁN HÀNG ---
   const addSaleItem = (v) => {
     const b = books.find((i) => i.MaSach === v.maSach);
+    const minTonSauBan = getRule("MinTonSauBan", 20);
+
+    if (b.SoLuongTon - v.soLuong < minTonSauBan)
+      return message.error(
+        `Sau khi bán tồn kho sẽ < ${minTonSauBan}. Không được bán!`
+      );
+
     if (saleItems.find((i) => i.maSach === v.maSach))
-      return message.warning("Đã có!");
-    const tiLe =
-      (rules.find((r) => r.MaThamSo === "TiLeGiaBan")?.GiaTri || 105) / 100;
+      return message.warning("Đã có trong giỏ hàng");
+    const tiLe = getRule("TiLeGiaBan", 105) / 100;
     const gia = b.DonGiaNhapGanNhat * tiLe;
     setSaleItems([
       ...saleItems,
@@ -343,10 +370,22 @@ function App() {
       },
     ]);
     tempSaleForm.resetFields();
+    setSelectedBookId(null);
   };
   const submitSale = async () => {
     if (!selectedCustomer || saleItems.length === 0)
       return message.error("Thiếu thông tin");
+    const total = saleItems.reduce((s, i) => s + i.thanhTien, 0);
+
+    // [Yêu cầu 10] Validate Tiền trả
+    const customer = customers.find((c) => c.MaKhachHang === selectedCustomer);
+    const currentDebt = customer?.TienNoHienTai || 0;
+    if (paymentAmount > total + currentDebt) {
+      return message.error(
+        "Khách trả thừa tiền vượt quá tổng nợ! (Hệ thống không hỗ trợ trả lại tiền mặt)"
+      );
+    }
+
     try {
       await axios.post(`${API_URL}/ban-sach`, {
         maKhachHang: selectedCustomer,
@@ -366,10 +405,10 @@ function App() {
     }
   };
 
-  // --- ĐÂY LÀ CHỖ SỬA QUAN TRỌNG NHẤT: handleLogin ---
+  // --- CRUD ---
   const handleLogin = async (v) => {
     try {
-      const r = await axios.post(`${API_URL}/login`, v); // Sử dụng biến API_URL
+      const r = await axios.post(`${API_URL}/login`, v);
       sessionStorage.setItem("token", r.data.token);
       sessionStorage.setItem("user", JSON.stringify(r.data.user));
       setToken(r.data.token);
@@ -379,7 +418,6 @@ function App() {
       handleError(e, "Đăng nhập");
     }
   };
-
   const handleLogout = () => {
     sessionStorage.clear();
     setToken(null);
@@ -406,6 +444,7 @@ function App() {
       handleError(e, "Xóa khách");
     }
   };
+
   const saveCategory = async (v) => {
     try {
       if (editingItem)
@@ -427,6 +466,7 @@ function App() {
       handleError(e, "Xóa thể loại");
     }
   };
+
   const saveBook = async (v) => {
     try {
       if (editingItem)
@@ -467,6 +507,7 @@ function App() {
       handleError(e, "Xóa user");
     }
   };
+
   const handleThu = async (v) => {
     try {
       await axios.post(`${API_URL}/thu-tien`, v);
@@ -525,12 +566,7 @@ function App() {
             >
               <img
                 src={IMG_LOGIN_DORA}
-                alt="Doraemon"
-                style={{
-                  width: "100%",
-                  maxWidth: 200,
-                  filter: "drop-shadow(0 10px 10px rgba(0,0,0,0.2))",
-                }}
+                style={{ width: "100%", maxWidth: 200 }}
               />
               <Title
                 level={3}
@@ -539,16 +575,10 @@ function App() {
                   marginTop: 20,
                   fontFamily: "Nunito",
                   fontWeight: 800,
-                  textAlign: "center",
                 }}
               >
-                XIN CHÀO BẠN!
+                XIN CHÀO!
               </Title>
-              <Text
-                style={{ color: "rgba(255,255,255,0.9)", textAlign: "center" }}
-              >
-                Cùng quản lý nhà sách với tớ nhé!
-              </Text>
             </Col>
             <Col
               span={14}
@@ -560,40 +590,18 @@ function App() {
               }}
             >
               <div style={{ textAlign: "center", marginBottom: 30 }}>
-                <Title
-                  level={2}
-                  style={{ color: "#0096FF", fontWeight: 800, margin: 0 }}
-                >
+                <Title level={2} style={{ color: "#0096FF", fontWeight: 800 }}>
                   ĐĂNG NHẬP
                 </Title>
-                <Text type="secondary">Hệ thống quản lý nội bộ</Text>
               </div>
-              <Form
-                layout="vertical"
-                size="large"
-                onFinish={handleLogin}
-                autoComplete="off"
-              >
+              <Form layout="vertical" size="large" onFinish={handleLogin}>
                 <Form.Item name="username" rules={[{ required: true }]}>
-                  <Input
-                    prefix={<UserOutlined style={{ color: DORA_BLUE }} />}
-                    placeholder="Tài khoản"
-                    style={{
-                      borderRadius: 15,
-                      background: "#f5faff",
-                      border: "1px solid #d9eaff",
-                    }}
-                  />
+                  <Input prefix={<UserOutlined />} placeholder="Tài khoản" />
                 </Form.Item>
                 <Form.Item name="password" rules={[{ required: true }]}>
                   <Input.Password
-                    prefix={<LockOutlined style={{ color: DORA_BLUE }} />}
+                    prefix={<LockOutlined />}
                     placeholder="Mật khẩu"
-                    style={{
-                      borderRadius: 15,
-                      background: "#f5faff",
-                      border: "1px solid #d9eaff",
-                    }}
                   />
                 </Form.Item>
                 <Form.Item>
@@ -607,18 +615,12 @@ function App() {
                       fontWeight: "bold",
                       borderRadius: 25,
                       background: DORA_BLUE,
-                      borderColor: DORA_BLUE,
-                      boxShadow: "0 5px 15px rgba(0,150,255,0.3)",
-                      marginTop: 10,
                     }}
                   >
                     MỞ CỬA THẦN KỲ
                   </Button>
                 </Form.Item>
               </Form>
-              <div style={{ textAlign: "center", color: "#888", fontSize: 12 }}>
-                Tài khoản được cấp bởi Quản trị viên
-              </div>
             </Col>
           </Row>
         </Card>
@@ -627,34 +629,11 @@ function App() {
 
   return (
     <Layout style={{ minHeight: "100vh", background: "transparent" }}>
-      {/* VÙNG IN */}
       <div id="print-area">
         {printContent && (
           <div style={{ padding: 40, fontFamily: "Times New Roman" }}>
-            <h1
-              style={{
-                textAlign: "center",
-                marginBottom: 5,
-                fontSize: 24,
-                textTransform: "uppercase",
-              }}
-            >
-              NHÀ SÁCH DORAEMON
-            </h1>
-            <p style={{ textAlign: "center" }}>
-              Địa chỉ: Khu phố 6, Linh Trung, Thủ Đức
-            </p>
-            <Divider style={{ borderColor: "#000" }} />
-            <h2 style={{ textAlign: "center", marginBottom: 20 }}>
-              {printContent.type === "report"
-                ? printContent.savedReportType === "ton"
-                  ? "BÁO CÁO TỒN KHO"
-                  : "BÁO CÁO CÔNG NỢ"
-                : "HÓA ĐƠN GIAO DỊCH"}
-            </h2>
-            <p style={{ textAlign: "center", marginBottom: 20 }}>
-              Ngày in: {printContent.date}
-            </p>
+            <h1 style={{ textAlign: "center" }}>NHÀ SÁCH DORAEMON</h1>
+            <p style={{ textAlign: "center" }}>Ngày in: {printContent.date}</p>
             <Table
               dataSource={printContent.data}
               pagination={false}
@@ -663,25 +642,15 @@ function App() {
               columns={getPrintColumns()}
             />
             <br />
-            <br />
             <Row>
               <Col span={12} style={{ textAlign: "center" }}>
-                <p>
-                  <b>Người lập phiếu</b>
-                </p>
+                Người lập phiếu
                 <br />
                 <br />
-                <br />
-                <p>{currentUser.hoTen}</p>
+                {currentUser.hoTen}
               </Col>
               <Col span={12} style={{ textAlign: "center" }}>
-                <p>
-                  <b>Xác nhận</b>
-                </p>
-                <br />
-                <br />
-                <br />
-                <p>(Ký tên)</p>
+                Xác nhận
               </Col>
             </Row>
           </div>
@@ -710,10 +679,9 @@ function App() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              border: `3px solid ${DORA_RED}`,
             }}
           >
-            <img src={IMG_LOGO_BELL} alt="" style={{ width: 25 }} />
+            <img src={IMG_LOGO_BELL} style={{ width: 25 }} />
           </div>
           <span
             style={{
@@ -721,7 +689,6 @@ function App() {
               fontSize: 20,
               fontWeight: 800,
               fontFamily: "Nunito",
-              letterSpacing: 1,
             }}
           >
             DORAEMON BOOKSTORE
@@ -732,7 +699,7 @@ function App() {
             items: [
               {
                 key: "1",
-                label: <span style={{ fontWeight: "bold" }}>Đăng Xuất</span>,
+                label: "Đăng Xuất",
                 icon: <LogoutOutlined />,
                 onClick: handleLogout,
               },
@@ -753,10 +720,10 @@ function App() {
             <Avatar
               size="large"
               src={IMG_AVATAR_DEFAULT}
-              style={{ border: `2px solid white`, background: "transparent" }}
+              style={{ background: "transparent" }}
             />
             <span style={{ color: "white", fontSize: 16, fontWeight: 700 }}>
-              {currentUser.hoTen || "Nobita"}
+              {currentUser.hoTen}
             </span>
           </div>
         </Dropdown>
@@ -776,7 +743,9 @@ function App() {
             defaultActiveKey="1"
             type="card"
             size="large"
-            tabBarStyle={{ marginBottom: 20 }}
+            onChange={(key) => {
+              if (key === "3") fetchReport();
+            }}
             items={[
               {
                 key: "1",
@@ -896,19 +865,12 @@ function App() {
                               style={{
                                 borderRadius: 10,
                                 fontSize: 14,
-                                padding: "4px 10px",
-                                color: "#555",
                                 fontWeight: "bold",
                               }}
                             >
-                              {(
-                                (v *
-                                  (rules.find(
-                                    (r) => r.MaThamSo === "TiLeGiaBan"
-                                  )?.GiaTri || 105)) /
-                                100
-                              ).toLocaleString()}{" "}
-                              ₫
+                              {formatMoney(
+                                v * (getRule("TiLeGiaBan", 105) / 100)
+                              )}
                             </Tag>
                           ),
                         },
@@ -923,7 +885,7 @@ function App() {
                       }}
                     >
                       <Title level={4} style={{ color: DORA_BLUE }}>
-                        <EyeOutlined /> Túi Thần Kỳ (Lịch Sử)
+                        <EyeOutlined /> Lịch Sử Giao Dịch
                       </Title>
                       <Tabs
                         items={[
@@ -936,11 +898,7 @@ function App() {
                                 rowKey="MaHoaDon"
                                 pagination={{ pageSize: 5 }}
                                 columns={[
-                                  {
-                                    title: "ID",
-                                    dataIndex: "MaHoaDon",
-                                    width: 60,
-                                  },
+                                  { title: "ID", dataIndex: "MaHoaDon" },
                                   {
                                     title: "Ngày",
                                     dataIndex: "NgayLap",
@@ -983,11 +941,7 @@ function App() {
                                 rowKey="MaPhieuNhap"
                                 pagination={{ pageSize: 5 }}
                                 columns={[
-                                  {
-                                    title: "ID",
-                                    dataIndex: "MaPhieuNhap",
-                                    width: 60,
-                                  },
+                                  { title: "ID", dataIndex: "MaPhieuNhap" },
                                   {
                                     title: "Ngày",
                                     dataIndex: "NgayNhap",
@@ -1032,11 +986,7 @@ function App() {
                                 rowKey="MaPhieuThu"
                                 pagination={{ pageSize: 5 }}
                                 columns={[
-                                  {
-                                    title: "ID",
-                                    dataIndex: "MaPhieuThu",
-                                    width: 60,
-                                  },
+                                  { title: "ID", dataIndex: "MaPhieuThu" },
                                   {
                                     title: "Ngày",
                                     dataIndex: "NgayThu",
@@ -1084,7 +1034,6 @@ function App() {
                               style={{
                                 marginBottom: 10,
                                 borderRadius: 15,
-                                borderColor: DORA_BLUE,
                                 color: DORA_BLUE,
                               }}
                               block
@@ -1094,7 +1043,7 @@ function App() {
                                 setIsBookModal(true);
                               }}
                             >
-                              Thêm Sách Mới
+                              + Thêm Sách Mới
                             </Button>
                             <Table
                               dataSource={books}
@@ -1155,7 +1104,6 @@ function App() {
                               style={{
                                 marginBottom: 10,
                                 borderRadius: 15,
-                                borderColor: DORA_BLUE,
                                 color: DORA_BLUE,
                               }}
                               block
@@ -1165,7 +1113,7 @@ function App() {
                                 setIsCustomerModal(true);
                               }}
                             >
-                              Thêm Khách
+                              + Thêm Khách
                             </Button>
                             <Table
                               dataSource={customers}
@@ -1177,7 +1125,7 @@ function App() {
                                 {
                                   title: "Nợ",
                                   dataIndex: "TienNoHienTai",
-                                  render: (v) => v.toLocaleString(),
+                                  render: (v) => formatMoney(v),
                                 },
                                 {
                                   title: "Thao tác",
@@ -1233,7 +1181,6 @@ function App() {
                               style={{
                                 marginBottom: 10,
                                 borderRadius: 15,
-                                borderColor: DORA_BLUE,
                                 color: DORA_BLUE,
                               }}
                               block
@@ -1243,7 +1190,7 @@ function App() {
                                 setIsCatModal(true);
                               }}
                             >
-                              Thêm Thể Loại
+                              + Thêm Thể Loại
                             </Button>
                             <Table
                               dataSource={categories}
@@ -1308,7 +1255,6 @@ function App() {
                                   style={{
                                     marginBottom: 10,
                                     borderRadius: 15,
-                                    borderColor: DORA_BLUE,
                                     color: DORA_BLUE,
                                   }}
                                   block
@@ -1317,7 +1263,7 @@ function App() {
                                     setIsUserModal(true);
                                   }}
                                 >
-                                  Thêm Nhân Viên
+                                  + Thêm Nhân Viên
                                 </Button>
                                 <Table
                                   dataSource={users}
@@ -1586,7 +1532,7 @@ function App() {
         Made by TuTi team ©2025
       </Footer>
 
-      {/* MODALS */}
+      {/* MODAL NHẬP HÀNG */}
       <Modal
         title="Nhập Sách Vào Kho"
         open={isModalOpen}
@@ -1608,6 +1554,7 @@ function App() {
           }}
         >
           <Form form={tempImportForm} layout="inline" onFinish={addImportItem}>
+            {/* [Yêu cầu 1, 5] Dropdown Sách Custom */}
             <Form.Item
               name="maSach"
               rules={[{ required: true }]}
@@ -1617,18 +1564,58 @@ function App() {
                 placeholder="Chọn sách"
                 showSearch
                 optionFilterProp="children"
+                onChange={(val) => setSelectedBookId(val)}
+                dropdownRender={(menu) => (
+                  <>
+                    {menu}
+                    <Divider style={{ margin: "8px 0" }} />
+                    <Button
+                      type="text"
+                      icon={<PlusOutlined />}
+                      block
+                      onClick={() => {
+                        setIsBookModal(true);
+                        setEditingItem(null);
+                        bookForm.resetFields();
+                      }}
+                    >
+                      Thêm sách mới
+                    </Button>
+                  </>
+                )}
               >
-                {books.map((b) => (
-                  <Option key={b.MaSach} value={b.MaSach}>
-                    {b.TenSach} (Tồn: {b.SoLuongTon})
-                  </Option>
-                ))}
+                {books.map((b) => {
+                  const minTon = getRule("MinTonTruocNhap", 300);
+                  const isViPham = b.SoLuongTon > minTon;
+                  return (
+                    <Option key={b.MaSach} value={b.MaSach} disabled={false}>
+                      <div
+                        style={{
+                          whiteSpace: "normal",
+                          height: "auto",
+                          color: isViPham ? "red" : "black",
+                        }}
+                      >
+                        {b.TenSach} (Tồn: {b.SoLuongTon})
+                      </div>
+                    </Option>
+                  );
+                })}
               </Select>
+              {/* [Yêu cầu 2] Thông báo lỗi nhỏ */}
+              {selectedBookId &&
+                books.find((b) => b.MaSach === selectedBookId)?.SoLuongTon >
+                  getRule("MinTonTruocNhap", 300) && (
+                  <div style={{ color: "red", fontSize: 11 }}>
+                    Không thoả lượng tồn tối thiểu trước nhập
+                  </div>
+                )}
             </Form.Item>
             <Form.Item
               name="soLuong"
               rules={[{ required: true }]}
               style={{ width: 100 }}
+              extra={`Min: ${getRule("MinNhap", 150)}`}
             >
               <InputNumber placeholder="SL" min={1} />
             </Form.Item>
@@ -1664,7 +1651,7 @@ function App() {
             {
               title: "Đơn Giá",
               dataIndex: "donGia",
-              render: (v) => v.toLocaleString(),
+              render: (v) => formatMoney(v),
             },
             {
               title: "Thành Tiền",
@@ -1700,6 +1687,8 @@ function App() {
           )}
         />
       </Modal>
+
+      {/* MODAL BÁN HÀNG */}
       <Modal
         title="Lập Hóa Đơn Bán"
         open={isSellModalOpen}
@@ -1714,6 +1703,7 @@ function App() {
         cancelText="Hủy"
       >
         <div style={{ marginBottom: 15 }}>
+          {/* [Yêu cầu 6] Dropdown Khách Hàng Custom */}
           <Select
             style={{ width: "100%" }}
             placeholder="Chọn Khách Hàng (Gõ tên để tìm...)"
@@ -1722,6 +1712,24 @@ function App() {
             showSearch
             optionFilterProp="children"
             size="large"
+            dropdownRender={(menu) => (
+              <>
+                {menu}
+                <Divider style={{ margin: "8px 0" }} />
+                <Button
+                  type="text"
+                  icon={<PlusOutlined />}
+                  block
+                  onClick={() => {
+                    setIsCustomerModal(true);
+                    setEditingItem(null);
+                    custForm.resetFields();
+                  }}
+                >
+                  Thêm khách hàng
+                </Button>
+              </>
+            )}
           >
             {customers.map((c) => (
               <Option key={c.MaKhachHang} value={c.MaKhachHang}>
@@ -1743,22 +1751,29 @@ function App() {
               name="maSach"
               rules={[{ required: true }]}
               style={{ width: 350 }}
+              extra={
+                selectedBookId &&
+                `Min tồn sau bán: ${getRule("MinTonSauBan", 20)}`
+              }
             >
               <Select
                 placeholder="Chọn sách bán"
                 showSearch
                 optionFilterProp="children"
+                onChange={(val) => setSelectedBookId(val)}
               >
                 {books.map((b) => (
                   <Option key={b.MaSach} value={b.MaSach}>
-                    {b.TenSach} (Giá:{" "}
-                    {formatMoney(
-                      (b.DonGiaNhapGanNhat *
-                        (rules.find((r) => r.MaThamSo === "TiLeGiaBan")
-                          ?.GiaTri || 105)) /
-                        100
-                    )}
-                    ) - Tồn: {b.SoLuongTon}
+                    <div style={{ whiteSpace: "normal" }}>
+                      {b.TenSach} (Giá:{" "}
+                      {formatMoney(
+                        (b.DonGiaNhapGanNhat *
+                          (rules.find((r) => r.MaThamSo === "TiLeGiaBan")
+                            ?.GiaTri || 105)) /
+                          100
+                      )}
+                      ) - Tồn: {b.SoLuongTon}
+                    </div>
                   </Option>
                 ))}
               </Select>
@@ -1792,7 +1807,7 @@ function App() {
             {
               title: "Đơn Giá",
               dataIndex: "donGiaBan",
-              render: (v) => v.toLocaleString(),
+              render: (v) => formatMoney(v),
             },
             {
               title: "Thành Tiền",
@@ -1830,6 +1845,8 @@ function App() {
           </div>
         </div>
       </Modal>
+
+      {/* MODAL KHÁC (GIỮ NGUYÊN) */}
       <Modal
         title="Thu Tiền Nợ"
         open={isPayModalOpen}
@@ -2004,13 +2021,13 @@ function App() {
           columns={[
             { title: "Sách", dataIndex: "TenSach" },
             {
-              title: "SL",
+              title: "Số Lượng",
               dataIndex: detailType === "hoadon" ? "SoLuong" : "SoLuongNhap",
             },
             {
               title: "Đơn Giá",
               dataIndex: detailType === "hoadon" ? "DonGiaBan" : "DonGiaNhap",
-              render: (v) => v?.toLocaleString(),
+              render: (v) => formatMoney(v),
             },
             {
               title: "Thành Tiền",
