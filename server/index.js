@@ -129,13 +129,13 @@ app.delete("/api/sach/:id", async (req, res) => {
 });
 
 app.post("/api/khach-hang", async (req, res) => {
-  const { hoTen, diaChi, soDienThoai, email } = req.body;
+  const { HoTen, DiaChi, SoDienThoai, Email } = req.body;
   try {
     await query(
       "INSERT INTO KHACH_HANG (HoTen, DiaChi, SoDienThoai, Email, TienNoHienTai) VALUES (?, ?, ?, ?, 0)",
-      [hoTen, diaChi, soDienThoai, email]
+      [HoTen, DiaChi, SoDienThoai, Email]
     );
-    res.json({ message: "Thành công" });
+    res.json({ message: "Thêm thành công" });
   } catch (e) {
     res.status(500).json(e);
   }
