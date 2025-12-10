@@ -1043,7 +1043,7 @@ function App() {
                                 setIsBookModal(true);
                               }}
                             >
-                              + Thêm Sách Mới
+                              Thêm Sách Mới
                             </Button>
                             <Table
                               dataSource={books}
@@ -1113,7 +1113,7 @@ function App() {
                                 setIsCustomerModal(true);
                               }}
                             >
-                              + Thêm Khách
+                              Thêm Khách
                             </Button>
                             <Table
                               dataSource={customers}
@@ -1190,7 +1190,7 @@ function App() {
                                 setIsCatModal(true);
                               }}
                             >
-                              + Thêm Thể Loại
+                              Thêm Thể Loại
                             </Button>
                             <Table
                               dataSource={categories}
@@ -1263,7 +1263,7 @@ function App() {
                                     setIsUserModal(true);
                                   }}
                                 >
-                                  + Thêm Nhân Viên
+                                  Thêm Nhân Viên
                                 </Button>
                                 <Table
                                   dataSource={users}
