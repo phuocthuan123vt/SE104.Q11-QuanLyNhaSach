@@ -138,7 +138,7 @@ const ImportModal = () => {
               books.find((b) => b.MaSach === selectedBookId)?.SoLuongTon >
                 getRule("MinTonTruocNhap", 300) && (
                 <div style={{ color: "red", fontSize: 11 }}>
-                  Không thoả lượng tồn tối thiểu trước nhập
+                  Không thoả lượng tồn tối đa trước nhập
                 </div>
               )}
           </Form.Item>

@@ -47,7 +47,11 @@ const SettingsTab = () => {
               <Form.Item
                 key={r.MaThamSo}
                 name={r.MaThamSo}
-                label={r.MoTa}
+                label={
+                  r.MaThamSo === "MinTonTruocNhap"
+                    ? "Lượng tồn tối đa trước khi nhập"
+                    : r.MoTa
+                }
                 rules={[{ required: true }]}
               >
                 <InputNumber style={{ width: "100%", borderRadius: 10 }} />
